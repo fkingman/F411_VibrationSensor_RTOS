@@ -211,6 +211,15 @@ void HAL_SPI_RxCpltCallback(SPI_HandleTypeDef *hspi)
         portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
     }
 }
+
+void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
+{
+    if (huart->Instance == USART1)
+    {
+        g_tx_busy = 0; 
+    }
+}
+
 /* USER CODE END 4 */
 
 /**
