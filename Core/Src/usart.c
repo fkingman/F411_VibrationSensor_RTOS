@@ -177,7 +177,7 @@ void USAR_UART_IDLECallback(UART_HandleTypeDef *huart)
 				memcpy(g_UartRxBuffer, rx_dma_buf, recv_len);  
 				g_UartRxLen   = recv_len;
 				BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-        vTaskNotifyGiveFromISR(CommTaskHandle, &xHigherPriorityTaskWoken);//发送通知给 CommTask
+        vTaskNotifyGiveFromISR(CommTaskHandle, &xHigherPriorityTaskWoken);//发�?��?�知�? CommTask
         portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
 		}
 	}
@@ -190,7 +190,7 @@ void On_IDLE(UART_HandleTypeDef *huart)
 	{	
 		if(RESET != __HAL_UART_GET_FLAG(&huart1, UART_FLAG_IDLE))   
 		{	 
-			// 清除空闲中断标志（否则会一直不断进入中断）
+			// 清除空闲中断标志（否则会�?直不断进入中断）
 			__HAL_UART_CLEAR_IDLEFLAG(&huart1);                    
 			// 调用中断处理函数
 			USAR_UART_IDLECallback(&huart1);                          

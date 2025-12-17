@@ -84,7 +84,7 @@ typedef struct {
     uint8_t write_index; // 当前 DMA 正在写哪
     uint8_t read_index;  // 当前 算法 正在读哪
     volatile uint8_t data_ready_flag; // 标志位：1表示有一半数据准备好
-} PingPong_Mgr_t;//乒乓状态
+} PingPong_Mgr_t;//乒乓状�??
 extern PingPong_Mgr_t g_PingPongMgr;
 
 extern uint8_t rx_dma_buf[UART_RX_BUF_SIZE];  

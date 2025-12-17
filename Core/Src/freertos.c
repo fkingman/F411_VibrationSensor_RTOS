@@ -174,7 +174,7 @@ void DataTask_Entry(void *argument)
     for(;;) {
       ulTaskNotifyTake(pdTRUE, portMAX_DELAY);// Notification 等待EXTI 中断
       uint8_t *p_target = (uint8_t*)&g_SensorRawBuffer[g_PingPongMgr.write_index][0];
-      p_target += (buffer_offset * 6); // 偏移多少字节 (每个点6字节: Xhi,Xlo,Yhi...)
+      p_target += (buffer_offset * 6); // 偏移多少字节 (每个�?6字节: Xhi,Xlo,Yhi...)
 
       KX134_Read_FIFO_DMA(p_target);
       if (xSemaphoreTake(DmaCpltSem, 10) == pdTRUE) 
@@ -189,7 +189,7 @@ void DataTask_Entry(void *argument)
         }
       }
       else {           
-            KX134_CS_High();// 超时处理：如果 SPI DMA 卡死了，记得在这里拉高 CS 复位 SPI
+            KX134_CS_High();// 超时处理：如�? SPI DMA 卡死了，记得在这里拉�? CS 复位 SPI
         }
     }
 }
@@ -197,7 +197,7 @@ void DataTask_Entry(void *argument)
 void AlgoTask_Entry(void *argument) 
 {
     for(;;) {
-        // 等待 数据准备�? 消息...
+        // 等待 数据准备�?? 消息...
         osDelay(100);
     }
 }

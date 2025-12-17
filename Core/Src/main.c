@@ -48,9 +48,9 @@
 
 /* USER CODE BEGIN PV */
 
-// 原始数据乒乓缓冲区 (4096 * 3 * 2 * 2 = 48KB)
+// 原始数据乒乓缓冲�? (4096 * 3 * 2 * 2 = 48KB)
 int16_t g_SensorRawBuffer[2][FFT_POINTS * AXIS_COUNT];
-//FFT 缓冲区 (4096 * 4 = 16KB)
+//FFT 缓冲�? (4096 * 4 = 16KB)
 float g_FftCalcBuffer[FFT_POINTS];
 
 PingPong_Mgr_t g_PingPongMgr = {0, 1, 0};
@@ -58,7 +58,7 @@ PingPong_Mgr_t g_PingPongMgr = {0, 1, 0};
 uint8_t rx_dma_buf[UART_RX_BUF_SIZE];  
 uint8_t g_UartRxBuffer[UART_RX_BUF_SIZE];
 volatile uint16_t g_UartRxLen = 0;//实际接收字节
-extern SemaphoreHandle_t DmaCpltSem;//DMA信号量
+extern SemaphoreHandle_t DmaCpltSem;//DMA信号�?
 
 
 /* USER CODE END PV */
@@ -74,7 +74,7 @@ void MX_FREERTOS_Init(void);
 /* USER CODE BEGIN 0 */
 void Uart1_RxStart(void)
 {
-    __HAL_UART_CLEAR_IDLEFLAG(&huart1);          // 清一次 IDLE 残留 
+    __HAL_UART_CLEAR_IDLEFLAG(&huart1);          // 清一�? IDLE 残留 
     __HAL_UART_ENABLE_IT(&huart1, UART_IT_IDLE);    
     HAL_UART_Receive_DMA(&huart1, rx_dma_buf, UART_RX_BUF_SIZE);
 }
@@ -203,7 +203,7 @@ void HAL_SPI_RxCpltCallback(SPI_HandleTypeDef *hspi)
         // 1. 拉高 CS
         KX134_CS_High();
         
-        // 2. 告诉 DataTask：DMA 搬完了
+        // 2. 告诉 DataTask：DMA 搬完�?
         BaseType_t xHigherPriorityTaskWoken = pdFALSE;
         xSemaphoreGiveFromISR(DmaCpltSem, &xHigherPriorityTaskWoken);
         portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
