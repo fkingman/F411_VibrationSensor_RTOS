@@ -1,0 +1,13 @@
+{
+    "folders": [
+        {
+            "path": "."
+        },
+        {
+            "name": "F411_VibrationSensor_RTOS",
+            "path": ".."
+        }
+    ],
+    "settings": {},
+    "extensions": {}
+}

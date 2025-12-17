@@ -1,0 +1,15 @@
+f411_vibrationsensor_rtos\event_groups.o: ../Middlewares/Third_Party/FreeRTOS/Source/event_groups.c
+f411_vibrationsensor_rtos\event_groups.o: D:\Keil5\ARM\ARM_Compiler_5.06u7\Bin\..\include\stdlib.h
+f411_vibrationsensor_rtos\event_groups.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/FreeRTOS.h
+f411_vibrationsensor_rtos\event_groups.o: D:\Keil5\ARM\ARM_Compiler_5.06u7\Bin\..\include\stddef.h
+f411_vibrationsensor_rtos\event_groups.o: D:\Keil5\ARM\ARM_Compiler_5.06u7\Bin\..\include\stdint.h
+f411_vibrationsensor_rtos\event_groups.o: ../Core/Inc/FreeRTOSConfig.h
+f411_vibrationsensor_rtos\event_groups.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/projdefs.h
+f411_vibrationsensor_rtos\event_groups.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/portable.h
+f411_vibrationsensor_rtos\event_groups.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/deprecated_definitions.h
+f411_vibrationsensor_rtos\event_groups.o: ../Middlewares/Third_Party/FreeRTOS/Source/portable/RVDS/ARM_CM4F/portmacro.h
+f411_vibrationsensor_rtos\event_groups.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/mpu_wrappers.h
+f411_vibrationsensor_rtos\event_groups.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/task.h
+f411_vibrationsensor_rtos\event_groups.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/list.h
+f411_vibrationsensor_rtos\event_groups.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/timers.h
+f411_vibrationsensor_rtos\event_groups.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/event_groups.h
