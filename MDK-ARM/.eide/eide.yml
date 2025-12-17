@@ -78,6 +78,8 @@ virtualFolder:
       files:
         - path: ../BSP/KX134.c
         - path: ../BSP/KX134.h
+        - path: ../BSP/Eigenvalue calculation.c
+        - path: ../BSP/Eigenvalue calculation.h
       folders: []
     - name: ::CMSIS
       files: []
