@@ -90,6 +90,8 @@ typedef struct {
 } PingPong_Mgr_t;//乒乓状�??
 extern PingPong_Mgr_t g_PingPongMgr;
 extern uint8_t LOCAL_DEVICE_ADDR;
+extern uint16_t g_cfg_freq_hz;
+
 extern uint8_t rx_dma_buf[UART_RX_BUF_SIZE];  
 extern uint8_t g_UartRxBuffer[UART_RX_BUF_SIZE];
 extern volatile uint16_t g_UartRxLen;//实际接收字节

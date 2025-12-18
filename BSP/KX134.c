@@ -5,6 +5,21 @@
 
 extern TaskHandle_t DataTaskHandle;
 
+static uint8_t KX134_FreqToHex(uint16_t freq) {
+    switch(freq) {
+        case 25600: return 0x0F;
+        case 12800: return 0x0E;
+        case 6400:  return 0x0D;
+        case 3200:  return 0x0C;
+        case 1600:  return 0x0B;
+        case 800:   return 0x0A;
+        case 400:   return 0x09;
+        case 200:   return 0x08;
+        // 低于200Hz暂不列出，可根据需求补充
+        default:    return 0x0F; // 默认最高
+    }
+}
+
 // 内部写函数
 static void KX134_WriteReg(uint8_t Reg, uint8_t Val) {
     uint8_t data[2];
@@ -91,20 +106,7 @@ void KX134_CS_High(void) {
     HAL_GPIO_WritePin(KX134_CS_GPIO_Port, KX134_CS_Pin, GPIO_PIN_SET);
 }
 
-static uint8_t KX134_FreqToHex(uint16_t freq) {
-    switch(freq) {
-        case 25600: return 0x0F;
-        case 12800: return 0x0E;
-        case 6400:  return 0x0D;
-        case 3200:  return 0x0C;
-        case 1600:  return 0x0B;
-        case 800:   return 0x0A;
-        case 400:   return 0x09;
-        case 200:   return 0x08;
-        // 低于200Hz暂不列出，可根据需求补充
-        default:    return 0x0F; // 默认最高
-    }
-}
+
 
 uint8_t KX134_SetODR(uint16_t freq_hz) {
     uint8_t odr_val = KX134_FreqToHex(freq_hz);

@@ -86,9 +86,11 @@ void App_ConfigInit()
 		if (addr == 0xFF) addr = 0x00;
 
 		LOCAL_DEVICE_ADDR = addr;
-    g_cfg_freq_hz     = freq;
+    if(freq != 0xFFFF && freq != 0) {
+        g_cfg_freq_hz = freq;
+    }
 	
-    KX134_SetODR(g_cfg_freq_hz);
+    //KX134_SetODR(g_cfg_freq_hz);
 }
 
 void Uart1_RxStart(void)
@@ -108,7 +110,7 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
-
+  SCB->VTOR = 0x0800C000;
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/

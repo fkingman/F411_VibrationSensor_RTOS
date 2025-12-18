@@ -169,7 +169,9 @@ void StartDefaultTask(void *argument)
 
 void DataTask_Entry(void *argument) 
 {
-  KX134_Init();
+  if (KX134_Init()) {
+    KX134_SetODR(g_cfg_freq_hz);
+  }
   uint16_t buffer_offset = 0;// 记录当前填到 Buffer 的哪个位置了 (0 ~ 4096)
     for(;;) {
       ulTaskNotifyTake(pdTRUE, portMAX_DELAY);// Notification 等待EXTI 中断
