@@ -169,7 +169,7 @@ enum { CRC_LEN       = 2  };
 enum { FRAME_LEN     = FRAME_NOCRC + CRC_LEN };  // 260 + 2 = 262
 
 /* 帧：dev_id | CMD_WAVE  | seq(1B) |total_pkts(1B) | 64×float(BE) | CRC(LE) */
-static void send_wave_pkt(uint8_t dev_id,const int16_t *buf, uint8_t seq, uint8_t total_pkts)
+static void send_wave_pkt(uint8_t dev_id,const float *buf, uint8_t seq, uint8_t total_pkts)
 {
     if (!buf) return;
 
@@ -187,11 +187,7 @@ static void send_wave_pkt(uint8_t dev_id,const int16_t *buf, uint8_t seq, uint8_
 
     /* 数据区：64 个 float，按大端写入；末包不足补 0.0f */
 		for (uint16_t i = 0; i < PTS_PER_PKT; ++i) {
-        // 1. 取出快照中的原始数据
-        int16_t raw = buf[offset + i];        
-        // 2. 转换为物理量 g 
-        float v = (float)raw * KX134_SENSITIVITY;       
-        // 3. 按大端 float 写入发送缓冲
+        float v = buf[offset + i]; 
         put_be_f32(&p, v);
     }
 
@@ -295,7 +291,7 @@ static void Config_ParseAndApply_Freq(const uint8_t* rx)
     if (Flash_UpdateFreq(f) == HAL_OK) 
 		{
         g_cfg_freq_hz = f;
-        ACQ_SetFreqHz(g_cfg_freq_hz);
+        KX134_SetODR(g_cfg_freq_hz);
     }
 }
 
@@ -336,11 +332,12 @@ static void CALIBRATION_Config_SendAck(uint8_t dev_id)
 }
 
 /**********************************OTA处理函数**********************************/
-/*static void Flash_ClearErrors(void)
+static void Flash_ClearErrors(void)
 {
-    __HAL_FLASH_CLEAR_FLAG(FLASH_FLAG_ALL_ERRORS_BANK1);
+    // STM32F4 标准错误标志清除
+    __HAL_FLASH_CLEAR_FLAG(FLASH_FLAG_EOP | FLASH_FLAG_OPERR | FLASH_FLAG_WRPERR | 
+                           FLASH_FLAG_PGAERR | FLASH_FLAG_PGPERR | FLASH_FLAG_PGSERR);
 }
-
 // 1. 处理 OTA 开始命令
 // 主机发送: [DevID] [0x50] [Len(4B)] [CRC]
 static void Handle_OTA_Start(uint8_t dev_id, const uint8_t *rx_data)
@@ -348,32 +345,40 @@ static void Handle_OTA_Start(uint8_t dev_id, const uint8_t *rx_data)
     // 解析固件总长度 (大端)
     uint32_t total_len = rd_be32(rx_data);
     
-    // 简单检查长度 (H723 下载区 384KB)
-    if (total_len == 0 || total_len > (384 * 1024)) return;
-		s_received_bytes = 0;
+    // 检查长度: F411 Sector6+7 共 256KB
+    if (total_len == 0 || total_len > OTA_MAX_SIZE) return;
+    
+    s_received_bytes = 0;
+    
     // 解锁 Flash
     HAL_FLASH_Unlock();
-		Flash_ClearErrors(); // 关键：清除之前的错误标志
+    Flash_ClearErrors(); 
     
-    // 擦除下载区 (Sector 4, 5, 6)
-    // 注意：擦除 384KB 可能需要几秒钟，这期间会阻塞主循环
-    FLASH_EraseInitTypeDef EraseInitStruct;
-    uint32_t SectorError;
+    // 擦除下载区 (Sector 6, 7)
+    // F411 Sector 6/7 都是 128KB，擦除可能需要 1-2秒/扇区
+    FLASH_EraseInitTypeDef EraseInitStruct = {0};
+    uint32_t SectorError = 0;
 
     EraseInitStruct.TypeErase     = FLASH_TYPEERASE_SECTORS;
-    EraseInitStruct.Banks         = FLASH_BANK_1;
-    EraseInitStruct.Sector        = FLASH_SECTOR_4; // 从 Sector 4 开始
-    EraseInitStruct.NbSectors     = 3;              // 擦除 4, 5, 6
-    EraseInitStruct.VoltageRange  = FLASH_VOLTAGE_RANGE_3;
+    // EraseInitStruct.Banks      = FLASH_BANK_1; // F411 是单Bank，通常不需要指定或默认即可
+    EraseInitStruct.Sector        = FLASH_SECTOR_6; // 从 Sector 6 开始 (0x08040000)
+    EraseInitStruct.NbSectors     = 2;              // 擦除 6 和 7
+    EraseInitStruct.VoltageRange  = FLASH_VOLTAGE_RANGE_3; // 2.7V-3.6V 允许按字(32bit)操作
 
     if (HAL_FLASHEx_Erase(&EraseInitStruct, &SectorError) == HAL_OK)
     {
         // 擦除成功，回复 ACK
-        static uint8_t tx[7];uint8_t *p = tx;
-        *p++ = dev_id; *p++ = CMD_OTA_START; *p++ = 0x02; *p++ = 0x4F; *p++ = 0x4B; // 4F4B OK
+        static uint8_t tx[7];
+        uint8_t *p = tx;
+        *p++ = dev_id; 
+        *p++ = CMD_OTA_START; 
+        *p++ = 0x02; *p++ = 0x4F; *p++ = 0x4B; // OK
+        
         uint16_t crc = Modbus_CRC16(tx, (uint16_t)(p - tx));
-        *p++ = (uint8_t)crc; *p++ = (uint8_t)(crc >> 8);
-				uart3_send_dma(tx, (uint16_t)(p - tx));		
+        *p++ = (uint8_t)(crc & 0xFF); 
+        *p++ = (uint8_t)(crc >> 8);
+        
+        uart_send_dma(tx, (uint16_t)(p - tx)); // 使用 protocol.c 定义的发送函数
     }
     
     HAL_FLASH_Lock();
@@ -387,63 +392,67 @@ static void Handle_OTA_Data(uint8_t dev_id, const uint8_t *rx_data, uint16_t fra
 {
     // frame_payload_len 是除去头部(Dev+Cmd)和尾部(CRC)后的总长度
     
-    // 1. 基础长度检查: 至少要有 Offset(4) + DataLen(2) = 6 字节
+    // 1. 基础长度检查
     if (frame_payload_len < 6) return;
     
     // 2. 解析参数
-    uint32_t offset = rd_be32(rx_data);          // 读取 4字节 偏移
-    uint16_t expect_len = rd_be16(rx_data + 4);  // 读取 2字节 主机指定的长度
-    const uint8_t *pData = rx_data + 6;          // 数据指针向后移 6 字节
+    uint32_t offset = rd_be32(rx_data);          
+    uint16_t expect_len = rd_be16(rx_data + 4);  
+    const uint8_t *pData = rx_data + 6;          
     
-    // 3. 计算实际剩余的数据字节数
+    // 3. 校验长度
     uint16_t actual_len = frame_payload_len - 6;
+    if (expect_len != actual_len) return; 
 
-    // 4. 校验主机发送的长度 与 实际接收长度是否一致
-    // 如果不一致，说明传输过程有丢包或协议解析错误，绝对不能写入，否则会越界或错位
-    if (expect_len != actual_len)
-    {
-        return; 
-    }
-
-    // 5. 对齐检查 (32字节对齐)
-    // 注意：这里检查的是主机指定的 expect_len
-    if ((offset % 32 != 0) || (expect_len % 32 != 0))
-    {
-        return; 
-    }
+    // 4. 对齐检查 (F4 按 Word 写入建议 4 字节对齐，协议层维持 32 字节对齐更好)
+    if ((offset % 4 != 0) || (expect_len % 4 != 0)) return; 
 
     // 计算写入目标地址
     uint32_t target_addr = OTA_DOWNLOAD_ADDR + offset;
     
-    HAL_FLASH_Unlock();
-    Flash_ClearErrors(); // 清除标志
-        
-    // 循环写入
-    static uint32_t flash_word_buf[8]; // 32 bytes
-    
-    // 使用主机指定的 expect_len 进行循环
-    for (uint32_t i = 0; i < expect_len; i += 32)
-    {
-        // 这里的 pData 已经是偏移过后的正确位置
-        memcpy(flash_word_buf, &pData[i], 32);
+    // 安全检查：防止写出下载区
+    if ((offset + expect_len) > OTA_MAX_SIZE) return;
 
-        if (HAL_FLASH_Program(FLASH_TYPEPROGRAM_FLASHWORD, target_addr + i, (uint32_t)flash_word_buf) != HAL_OK)
+    HAL_FLASH_Unlock();
+    Flash_ClearErrors(); 
+        
+    // 循环写入 (F4 移植关键点)
+    // H7 可以一次写 32 字节 (FLASH_TYPEPROGRAM_FLASHWORD)
+    // F4 只能一次写 4 字节 (FLASH_TYPEPROGRAM_WORD)
+    
+    HAL_StatusTypeDef status = HAL_OK;
+    
+    for (uint32_t i = 0; i < expect_len; i += 4)
+    {
+        uint32_t data_word;
+        // 使用 memcpy 防止内存不对齐访问
+        memcpy(&data_word, &pData[i], 4);
+
+        status = HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD, target_addr + i, data_word);
+        if (status != HAL_OK)
         {
-            HAL_FLASH_Lock();
-            return; 
+            break; // 写入失败，跳出
         }
     }
     
     HAL_FLASH_Lock();
-    s_received_bytes += expect_len; // 累加接收字节数
+    
+    if (status == HAL_OK)
+    {
+        s_received_bytes += expect_len; // 累加接收字节数
 
-    // 回复 ACK   
-		static uint8_t tx[7];uint8_t *p = tx;
-		*p++ = dev_id; *p++ = CMD_OTA_DATA; *p++ = 0x02; *p++ = 0x4F; *p++ = 0x4B; // 4F4B OK
-		uint16_t crc = Modbus_CRC16(tx, (uint16_t)(p - tx));
-		*p++ = (uint8_t)crc; *p++ = (uint8_t)(crc >> 8);		
-    uart3_send_dma(tx, (uint16_t)(p - tx));    
-		
+        // 回复 ACK   
+        static uint8_t tx[7];
+        uint8_t *p = tx;
+        *p++ = dev_id; 
+        *p++ = CMD_OTA_DATA; 
+        *p++ = 0x02; *p++ = 0x4F; *p++ = 0x4B; 
+        
+        uint16_t crc = Modbus_CRC16(tx, (uint16_t)(p - tx));
+        *p++ = (uint8_t)(crc & 0xFF); 
+        *p++ = (uint8_t)(crc >> 8);        
+        uart_send_dma(tx, (uint16_t)(p - tx));    
+    }
 }
 
 // 3. 处理 OTA 结束命令
@@ -451,29 +460,35 @@ static void Handle_OTA_Data(uint8_t dev_id, const uint8_t *rx_data, uint16_t fra
 static void Handle_OTA_End(uint8_t dev_id, const uint8_t *rx_data)
 {
     uint32_t fw_len = rd_be32(rx_data);
-		
-		if (fw_len == 0 || s_received_bytes != fw_len)
+    
+    if (fw_len == 0 || s_received_bytes != fw_len)
     {
-        // 可以在这里回复一个 NACK (错误码)，告诉上位机校验失败
-        // 或者直接忽略，不重启，不设置标志
+        // 长度校验失败，不升级
         return; 
     }
-    // 1. 回复 ACK (必须先回复，因为一会要重启了)
-		static uint8_t tx[7];uint8_t *p = tx;
-		*p++ = dev_id; *p++ = CMD_OTA_START; *p++ = 0x02; *p++ = 0x4F; *p++ = 0x4B; // 4F4B OK
-		uint16_t crc = Modbus_CRC16(tx, (uint16_t)(p - tx));
-		*p++ = (uint8_t)crc; *p++ = (uint8_t)(crc >> 8);
-	
-    // 使用阻塞发送，确保重启前发出去
-    HAL_UART_Transmit(&huart3, tx, 7, 100); 
 
-    // 2. 设置标志位 (请求 Bootloader 升级)
+    // 1. 回复 ACK 
+    static uint8_t tx[7];
+    uint8_t *p = tx;
+    *p++ = dev_id; 
+    *p++ = CMD_OTA_END; // 修正：原代码此处回复的是 CMD_OTA_START (0x50)，改为 END (0x52) 对应
+    *p++ = 0x02; *p++ = 0x4F; *p++ = 0x4B; 
+    
+    uint16_t crc = Modbus_CRC16(tx, (uint16_t)(p - tx));
+    *p++ = (uint8_t)(crc & 0xFF); 
+    *p++ = (uint8_t)(crc >> 8);
+  
+    // 使用阻塞发送，确保重启前数据已发出
+    // 注意：Protocol_UART 宏在 protocol.c 中定义为 huart1
+    HAL_UART_Transmit(&PROTOCOL_UART, tx, 7, 100); 
+
+    // 2. 设置标志位 (调用 flash.c 接口，保留参数区)
     Flash_SetOTAInfo(OTA_FLAG_UPDATE_NEEDED, fw_len);
 
     // 3. 重启
-    HAL_Delay(100);
+    HAL_Delay(50); // 稍作延时
     HAL_NVIC_SystemReset();
-}*/
+}
 
 /**********************************帧处理**********************************/
 void Protocol_HandleRxFrame(const uint8_t *rx, uint16_t len, uint8_t local_address)
@@ -510,8 +525,8 @@ void Protocol_HandleRxFrame(const uint8_t *rx, uint16_t len, uint8_t local_addre
     switch (cmd)
     {
     case CMD_FEATURE: send_feature_pkt(dev_id, &X_data, &Y_data, &Z_data); break;
-		case CMD_WAVE:g_WaveformRequest = 1;send_wave_ack(dev_id); break;
-		case CMD_WAVE_PACK:	send_wave_pkt(dev_id, Tx_Wave_Buffer_Z, b2, b3); break;
+		case CMD_WAVE:Create_Wave_Snapshot();send_wave_ack(dev_id); break;
+		case CMD_WAVE_PACK:	send_wave_pkt(dev_id, Algo_Get_Snapshot_Ptr(), b2, b3); break;
 		case CMD_CONFIG:
 			  switch (b2)
         {
@@ -534,9 +549,9 @@ void Protocol_HandleRxFrame(const uint8_t *rx, uint16_t len, uint8_t local_addre
         default: break;
         }
         break;*/
-		//case CMD_OTA_START:	Handle_OTA_Start(dev_id, &rx[2]);break;
-		//case CMD_OTA_DATA:Handle_OTA_Data(dev_id, &rx[2], len - 4);break;
-		//case CMD_OTA_END:	Handle_OTA_End(dev_id, &rx[2]);break;
+		case CMD_OTA_START:	Handle_OTA_Start(dev_id, &rx[2]);break;
+		case CMD_OTA_DATA:Handle_OTA_Data(dev_id, &rx[2], len - 4);break;
+		case CMD_OTA_END:	Handle_OTA_End(dev_id, &rx[2]);break;
 		default:
         break;
     }

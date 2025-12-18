@@ -90,3 +90,42 @@ void KX134_Read_FIFO_DMA(uint8_t *target_buffer) {
 void KX134_CS_High(void) {
     HAL_GPIO_WritePin(KX134_CS_GPIO_Port, KX134_CS_Pin, GPIO_PIN_SET);
 }
+
+static uint8_t KX134_FreqToHex(uint16_t freq) {
+    switch(freq) {
+        case 25600: return 0x0F;
+        case 12800: return 0x0E;
+        case 6400:  return 0x0D;
+        case 3200:  return 0x0C;
+        case 1600:  return 0x0B;
+        case 800:   return 0x0A;
+        case 400:   return 0x09;
+        case 200:   return 0x08;
+        // 低于200Hz暂不列出，可根据需求补充
+        default:    return 0x0F; // 默认最高
+    }
+}
+
+uint8_t KX134_SetODR(uint16_t freq_hz) {
+    uint8_t odr_val = KX134_FreqToHex(freq_hz);
+    
+    // 1. 读取 CNTL1 当前值
+    uint8_t ctrl1 = KX134_ReadReg(KX134_CNTL1);
+    
+    // 2. 如果当前是工作模式 (PC1=1)，必须先切到 Standby (PC1=0)
+    if (ctrl1 & 0x80) {
+        KX134_WriteReg(KX134_CNTL1, ctrl1 & 0x7F); 
+        // 规格书建议等待一小段时间，确保状态切换
+        // HAL_Delay(1); 
+    }
+    
+    // 3. 写入新的 ODR
+    KX134_WriteReg(KX134_ODCNTL, odr_val);
+    
+    // 4. 恢复之前的模式 (如果是工作模式则恢复为工作模式)
+    if (ctrl1 & 0x80) {
+        KX134_WriteReg(KX134_CNTL1, ctrl1);
+    }
+    
+    return 1;
+}

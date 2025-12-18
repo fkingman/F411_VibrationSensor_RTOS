@@ -28,5 +28,6 @@ extern uint8_t cfg_odr;
 uint8_t KX134_Init(void);
 void KX134_Read_FIFO_DMA(uint8_t *target_buffer);
 void KX134_CS_High(void); 
+uint8_t KX134_SetODR(uint16_t freq_hz);
 
 #endif

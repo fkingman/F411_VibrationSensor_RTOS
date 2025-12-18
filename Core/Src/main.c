@@ -50,17 +50,15 @@
 
 // 原始数据乒乓缓冲 (4096 * 3 * 2 * 2 = 48KB)
 int16_t g_SensorRawBuffer[2][FFT_POINTS * AXIS_COUNT];
-// 波形快照
-int16_t Tx_Wave_Buffer_Z[FFT_POINTS];
-//FFT 缓冲 (4096 * 4 = 16KB)
-float g_FftCalcBuffer[FFT_POINTS];
-
 PingPong_Mgr_t g_PingPongMgr = {0, 1, 0};
 
 uint8_t rx_dma_buf[UART_RX_BUF_SIZE];  
 uint8_t g_UartRxBuffer[UART_RX_BUF_SIZE];
 volatile uint16_t g_UartRxLen = 0;//实际接收字节
 extern SemaphoreHandle_t DmaCpltSem;//DMA信号量
+
+uint8_t LOCAL_DEVICE_ADDR = FLASH_CFG_DEFAULT_ADDR;
+uint16_t g_cfg_freq_hz = FLASH_CFG_DEFAULT_FREQ;
 
 
 /* USER CODE END PV */
@@ -74,6 +72,25 @@ void MX_FREERTOS_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+
+void App_ConfigInit()
+{
+//    UID_Fill_BE_w0w1w2(uid_me); 
+	
+		uint8_t  addr;
+    uint16_t freq;
+    uint16_t points;
+	
+    /*从 Flash 载入设备地址，不合法则为 0x00(广播地址) */
+		Flash_ReadConfig(&addr, &freq, &points);	
+		if (addr == 0xFF) addr = 0x00;
+
+		LOCAL_DEVICE_ADDR = addr;
+    g_cfg_freq_hz     = freq;
+	
+    KX134_SetODR(g_cfg_freq_hz);
+}
+
 void Uart1_RxStart(void)
 {
     __HAL_UART_CLEAR_IDLEFLAG(&huart1);          // 清一次IDLE 残留 
@@ -116,6 +133,7 @@ int main(void)
   MX_USART1_UART_Init();
   MX_SPI1_Init();
   /* USER CODE BEGIN 2 */
+  App_ConfigInit();
   Uart1_RxStart();
   /* USER CODE END 2 */
 

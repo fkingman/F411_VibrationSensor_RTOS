@@ -83,6 +83,8 @@ virtualFolder:
         - path: ../BSP/bytes.h
         - path: ../BSP/protocol.c
         - path: ../BSP/protocol.h
+        - path: ../BSP/flash.c
+        - path: ../BSP/flash.h
       folders: []
     - name: ::CMSIS
       files: []

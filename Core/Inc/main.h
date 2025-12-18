@@ -39,6 +39,8 @@ extern "C" {
 #include "FreeRTOS.h"
 #include "semphr.h"
 #include "protocol.h"
+#include "Eigenvalue calculation.h"
+#include "flash.h"
 
 /* USER CODE END Includes */
 
@@ -78,17 +80,16 @@ void Error_Handler(void);
 
 /* USER CODE BEGIN Private defines */
 #define UART_RX_BUF_SIZE  1024
-#define FFT_POINTS  4096
-#define AXIS_COUNT  3
+#define FFT_POINTS        4096
+#define AXIS_COUNT        3
 extern int16_t g_SensorRawBuffer[2][FFT_POINTS * AXIS_COUNT];
-extern float g_FftCalcBuffer[FFT_POINTS];
 typedef struct {
     uint8_t write_index; // 当前 DMA 正在写哪
     uint8_t read_index;  // 当前 算法 正在读哪
     volatile uint8_t data_ready_flag; // 标志位：1表示有一半数据准备好
 } PingPong_Mgr_t;//乒乓状�??
 extern PingPong_Mgr_t g_PingPongMgr;
-
+extern uint8_t LOCAL_DEVICE_ADDR;
 extern uint8_t rx_dma_buf[UART_RX_BUF_SIZE];  
 extern uint8_t g_UartRxBuffer[UART_RX_BUF_SIZE];
 extern volatile uint16_t g_UartRxLen;//实际接收字节

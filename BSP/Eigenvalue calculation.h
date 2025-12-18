@@ -11,7 +11,6 @@
 #define KX134_SENSITIVITY         (1.0f / KX134_SENSITIVITY_LSB_G)
 
 // FFT 配置
-#define FFT_LEN           FFT_POINTS
 #define SAMPLE_FREQ       25600.0f  // 25.6kHz
 
 // ================== 数据结构 ==================
@@ -29,11 +28,13 @@ typedef struct
 } AxisFeatureValue;
 extern AxisFeatureValue X_data,Y_data,Z_data;
 extern float g_z_offset_g;
+//extern float g_WaveZ_Live[FFT_POINTS]; // 实时更新区 (算法写)
+//extern float g_WaveZ_Tx[FFT_POINTS];
 
 void Calc_Init(void);// 用于在上电时调用一次，负责 FFT 表初始化和滤波器初始化
 void Process_Data(int16_t *pRawData);
 void print_FEATURE();
-
-															
+void Create_Wave_Snapshot(void);
+const float* Algo_Get_Snapshot_Ptr(void);															
 
 #endif /* EIGENVALUE_CALCULATION_H_ */

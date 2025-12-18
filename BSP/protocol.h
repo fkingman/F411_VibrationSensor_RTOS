@@ -6,7 +6,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#define OTA_DOWNLOAD_ADDR  0x08080000 // OTA下载区
+#define OTA_DOWNLOAD_ADDR   0x08040000 
+#define OTA_MAX_SIZE        (256 * 1024)
 
 /*
 XY: mean RMS PP 

@@ -4,6 +4,8 @@
 static arm_rfft_fast_instance_f32 S_rfft;
 static float32_t fftBuf[FFT_POINTS]; 
 AxisFeatureValue X_data,Y_data,Z_data;
+static float g_WaveZ_Live[FFT_POINTS]; 
+static float g_WaveZ_Tx[FFT_POINTS];
 
 float g_z_offset_g  = 0.0f;   // 0g 偏移
 
@@ -13,7 +15,20 @@ extern const arm_cfft_instance_f32 arm_cfft_sR_f32_len1024;
 //计算初始化函数
 void Calc_Init(void)
 {
-    arm_rfft_fast_init_f32(&S_rfft, FFT_LEN);
+    arm_rfft_fast_init_f32(&S_rfft, FFT_POINTS);
+}
+
+void Create_Wave_Snapshot(void)
+{
+    // 进入临界区，防止拷贝到一半被算法任务打断
+    taskENTER_CRITICAL(); 
+    memcpy(g_WaveZ_Tx, g_WaveZ_Live, sizeof(g_WaveZ_Live));
+    taskEXIT_CRITICAL();
+}
+
+const float* Algo_Get_Snapshot_Ptr(void)
+{
+    return g_WaveZ_Tx;
 }
 
 void Z_Calib_Z_Upright_Neg1G(float *gBuf, uint32_t N)
@@ -48,6 +63,7 @@ static inline CFFT_PTR_T pick_cfft_u32(uint32_t N)
     }
 }*/
 //时域特征计算 (Mean, RMS, PP, Kurt)
+
 static void Calc_TimeDomain_Only(float32_t *data, uint32_t len, AxisFeatureValue *result)
 {
     float32_t sum = 0.0f;
@@ -153,24 +169,26 @@ void print_FEATURE(void)
 	
 void Process_Data(int16_t *pRawData)
 {	  
-    for (int i = 0; i < FFT_LEN; i++) {
+    for (int i = 0; i < FFT_POINTS; i++) {
         // 解交错 + 转换 float + 物理量变换
         fftBuf[i] = (float)pRawData[i * 3 + 0] * KX134_SENSITIVITY;
     }
-    Calc_TimeDomain_Only(fftBuf, FFT_LEN, &X_data);
+    Calc_TimeDomain_Only(fftBuf, FFT_POINTS, &X_data);
 
     // --- 处理 Y 轴 ---
-    for (int i = 0; i < FFT_LEN; i++) {
+    for (int i = 0; i < FFT_POINTS; i++) {
         fftBuf[i] = (float)pRawData[i * 3 + 1] * KX134_SENSITIVITY;
     }
-    Calc_TimeDomain_Only(fftBuf, FFT_LEN, &Y_data);
+    Calc_TimeDomain_Only(fftBuf, FFT_POINTS, &Y_data);
 
     // --- 处理 Z 轴 (含频域) ---
-    for (int i = 0; i < FFT_LEN; i++) {
-        fftBuf[i] = (float)pRawData[i * 3 + 2] * KX134_SENSITIVITY;
+    for (int i = 0; i < FFT_POINTS; i++) {
+        float val = (float)pRawData[i * 3 + 2] * KX134_SENSITIVITY;
+        fftBuf[i] = val;
+        g_WaveZ_Live[i] = val;
     }
-    Calc_TimeDomain_Only(fftBuf, FFT_LEN, &Z_data);
-    Calc_FreqDomain_Z(fftBuf, FFT_LEN);
+    Calc_TimeDomain_Only(fftBuf, FFT_POINTS, &Z_data);
+    Calc_FreqDomain_Z(fftBuf, FFT_POINTS);
 }
 
 
