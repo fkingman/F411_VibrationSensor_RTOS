@@ -283,6 +283,8 @@ void Process_Data(int16_t *pRawData)
         fftBuf[i] = val;
         //g_WaveZ_Live[i] = val;
     }
+    Calc_TimeDomain_Only(fftBuf, FFT_POINTS, &Z_data);
+    Z_data.mean =  Z_data.mean - 1;
     Remove_DC(fftBuf, FFT_POINTS);
     //Apply_Median_Filter_3(fftBuf, FFT_POINTS);
     //快照
@@ -292,7 +294,6 @@ void Process_Data(int16_t *pRawData)
         taskEXIT_CRITICAL();
         g_SnapshotReq = 0; 
     }
-    Calc_TimeDomain_Only(fftBuf, FFT_POINTS, &Z_data);
     Calc_FreqDomain_Z(fftBuf, FFT_POINTS);
 
     for (int i = 0; i < FFT_POINTS; i++) {
