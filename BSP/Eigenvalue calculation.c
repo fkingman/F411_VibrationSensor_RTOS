@@ -148,6 +148,53 @@ static void Calc_FreqDomain_Z(float32_t *data, uint32_t len)
     if (idx_2x < len / 2) Z_data.amp2x = data[idx_2x];
     else Z_data.amp2x = 0.0f;
 }
+//去直流
+static void Remove_DC_And_Rectify(float32_t *data, uint32_t len)
+{
+    float32_t x_prev = 0;
+    float32_t y_prev = 0;
+    float32_t val;
+    
+    // 简单的 IIR 高通滤波: y[i] = x[i] - x[i-1] + alpha * y[i-1]
+    float mean = 0.0f;
+    for(uint32_t i=0; i<len; i++) mean += data[i];
+    mean /= (float32_t)len;
+
+    for (uint32_t i = 0; i < len; i++) {
+        val = data[i] - mean; 
+        // data[i] = val;     // 如果需要看原始去直流波形
+        
+        // 2. 检波 (Rectification): 取绝对值
+        // 包络的核心就是把双边振荡变成单边能量
+        if (val < 0.0f) val = -val;
+        data[i] = val; 
+    }
+}
+//包络
+static void Calc_Envelope_Stats(float32_t *env_data, uint32_t len)
+{
+    float32_t sum = 0.0f;
+    float32_t sumSq = 0.0f;
+    float32_t maxVal = 0.0f;
+    
+    for (uint32_t i = 0; i < len; i++) {
+        float32_t val = env_data[i];
+        
+        // 累加计算均值 (对于包络信号，均值反映了整体噪声水平)
+        sum += val;
+        
+        // 累加计算 RMS (能量)
+        sumSq += val * val;
+        
+        // 寻找峰值 (冲击最大值)
+        if (val > maxVal) maxVal = val;
+    }
+    // 包络 RMS
+    Z_data.envelope_vrms = sqrtf(sumSq / (float32_t)len);
+    
+    // 包络峰值 (反映轴承缺陷的冲击强度)
+    Z_data.envelope_peak = maxVal;
+}
 
 
 /*void print_FEATURE(void)
@@ -197,6 +244,14 @@ void Process_Data(int16_t *pRawData)
 
     Calc_TimeDomain_Only(fftBuf, FFT_POINTS, &Z_data);
     Calc_FreqDomain_Z(fftBuf, FFT_POINTS);
+    //fftbuf为频谱数据
+    for (int i = 0; i < FFT_POINTS; i++) {
+        // 再次从源头读取
+        float val = (float)pRawData[i * 3 + 2] * KX134_SENSITIVITY;
+        fftBuf[i] = val;
+    }
+    Remove_DC_And_Rectify(fftBuf, FFT_POINTS);
+    Calc_Envelope_Stats(fftBuf, FFT_POINTS);
 }
 
 

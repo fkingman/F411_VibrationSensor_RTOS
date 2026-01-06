@@ -85,6 +85,9 @@ def parse_features_and_print(raw_data):
 
     # 提取数据区 (跳过头部3字节[Addr,Cmd,Len]，最后2字节CRC)
     payload = raw_data[3:-2]
+
+    # 解析 18 个 float
+    # 结构: X(4) + Y(4) + Z(9) + Temp(1)
     floats = struct.unpack('>18f', payload)
 
     print("\n" + "=" * 40)
@@ -92,8 +95,12 @@ def parse_features_and_print(raw_data):
     print("=" * 40)
     print(f"【X 轴】 Mean:{floats[0]:.4f}g, RMS:{floats[1]:.4f}g, P-P:{floats[2]:.4f}g, Kurt:{floats[3]:.4f}")
     print(f"【Y 轴】 Mean:{floats[4]:.4f}g, RMS:{floats[5]:.4f}g, P-P:{floats[6]:.4f}g, Kurt:{floats[7]:.4f}")
+
+    # 修改了这里：增加了包络数据的打印
     print(f"【Z 轴】 Mean:{floats[8]:.4f}g, RMS:{floats[9]:.4f}g, P-P:{floats[10]:.4f}g, Kurt:{floats[11]:.4f}")
     print(f"       主频:{floats[12]:.1f}Hz, 幅值:{floats[13]:.4f}g")
+    print(f"       包络RMS:{floats[15]:.4f}g, 包络峰值:{floats[16]:.4f}g")
+
     print(f"【其他】 温度:{floats[17]:.2f}")
     print("=" * 40 + "\n")
     return True
