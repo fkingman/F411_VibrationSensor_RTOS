@@ -4,8 +4,9 @@
 static arm_rfft_fast_instance_f32 S_rfft;
 static float32_t fftBuf[FFT_POINTS]; 
 AxisFeatureValue X_data,Y_data,Z_data;
-static float g_WaveZ_Live[FFT_POINTS]; 
+//static float g_WaveZ_Live[FFT_POINTS]; 
 static float g_WaveZ_Tx[FFT_POINTS];
+volatile uint8_t g_SnapshotReq = 0;       
 
 float g_z_offset_g  = 0.0f;   // 0g 偏移
 
@@ -21,9 +22,10 @@ void Calc_Init(void)
 void Create_Wave_Snapshot(void)
 {
     // 进入临界区，防止拷贝到一半被算法任务打断
-    taskENTER_CRITICAL(); 
-    memcpy(g_WaveZ_Tx, g_WaveZ_Live, sizeof(g_WaveZ_Live));
-    taskEXIT_CRITICAL();
+    //taskENTER_CRITICAL(); 
+    //memcpy(g_WaveZ_Tx, g_WaveZ_Live, sizeof(g_WaveZ_Live));
+    //taskEXIT_CRITICAL();
+    g_SnapshotReq = 1;
 }
 
 const float* Algo_Get_Snapshot_Ptr(void)
@@ -185,8 +187,14 @@ void Process_Data(int16_t *pRawData)
     for (int i = 0; i < FFT_POINTS; i++) {
         float val = (float)pRawData[i * 3 + 2] * KX134_SENSITIVITY;
         fftBuf[i] = val;
-        g_WaveZ_Live[i] = val;
+        //g_WaveZ_Live[i] = val;
     }
+
+    if (g_SnapshotReq == 1) {
+        memcpy(g_WaveZ_Tx, fftBuf, FFT_POINTS * sizeof(float));
+        g_SnapshotReq = 0; // 清除请求
+    }
+
     Calc_TimeDomain_Only(fftBuf, FFT_POINTS, &Z_data);
     Calc_FreqDomain_Z(fftBuf, FFT_POINTS);
 }

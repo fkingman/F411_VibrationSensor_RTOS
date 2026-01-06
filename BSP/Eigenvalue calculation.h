@@ -28,6 +28,7 @@ typedef struct
 } AxisFeatureValue;
 extern AxisFeatureValue X_data,Y_data,Z_data;
 extern float g_z_offset_g;
+extern volatile uint8_t g_SnapshotReq;    
 //extern float g_WaveZ_Live[FFT_POINTS]; // 实时更新区 (算法写)
 //extern float g_WaveZ_Tx[FFT_POINTS];
 
