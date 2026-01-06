@@ -177,6 +177,13 @@ void DataTask_Entry(void *argument)
   uint16_t buffer_offset = 0;// 记录当前填到 Buffer 的哪个位置了 (0 ~ 4096)
     for(;;) {
       ulTaskNotifyTake(pdTRUE, portMAX_DELAY);// Notification 等待EXTI 中断
+      if (g_ResetAcqReq == 1) {
+            // 收到重置命令：
+            buffer_offset = 0;              // 指针归零，丢弃这一包数据
+            g_ResetAcqReq = 0;              // 清除标志           
+            memset(g_SensorRawBuffer[g_PingPongMgr.write_index], 0, sizeof(g_SensorRawBuffer[0]));
+            continue; 
+        }
       uint8_t *p_target = (uint8_t*)&g_SensorRawBuffer[g_PingPongMgr.write_index][0];
       p_target += (buffer_offset * 6); // 偏移多少字节 
 

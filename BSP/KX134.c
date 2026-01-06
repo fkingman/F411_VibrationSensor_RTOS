@@ -157,7 +157,7 @@ uint8_t KX134_SetODR(uint16_t freq_hz) {
     if (ctrl1 & 0x80) {
         KX134_WriteReg(KX134_CNTL1, ctrl1 & 0x7F); 
         // 规格书建议等待一小段时间，确保状态切换
-        // HAL_Delay(1); 
+        vTaskDelay(20); 
     }
     
     // 3. 写入新的 ODR

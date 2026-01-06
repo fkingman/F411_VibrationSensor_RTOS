@@ -59,7 +59,7 @@ extern SemaphoreHandle_t DmaCpltSem;//DMA信号量
 
 uint8_t LOCAL_DEVICE_ADDR = FLASH_CFG_DEFAULT_ADDR;
 uint16_t g_cfg_freq_hz = FLASH_CFG_DEFAULT_FREQ;
-
+volatile uint8_t g_ResetAcqReq = 0; // 请求重置采集
 
 /* USER CODE END PV */
 

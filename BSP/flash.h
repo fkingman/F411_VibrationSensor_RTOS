@@ -22,7 +22,7 @@
 /* ---- 默认参数定义 ---- */
 #define FLASH_CFG_MAGIC         0xA5A55A5Au
 #define FLASH_CFG_DEFAULT_ADDR  0x00
-#define FLASH_CFG_DEFAULT_FREQ  12800
+#define FLASH_CFG_DEFAULT_FREQ  25600
 #define FLASH_CFG_DEFAULT_POINTS 4096u
 
 /* ---- OTA 标志位定义 ---- */

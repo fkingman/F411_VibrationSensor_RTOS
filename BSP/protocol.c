@@ -284,6 +284,7 @@ static bool HandleSetAddr_Broadcast(const uint8_t* rx, uint16_t flen)
 /**********************************解析配置帧**********************************/
 static void Config_ParseAndApply_Freq(const uint8_t* rx)
 {
+		taskENTER_CRITICAL();
 		uint16_t f = rd_be16(&rx[3]);        // dev|cmd|sub 之后 4 字节
 		if (f == 0) return;             // 0 无效，直接忽略
 		if (f > FLASH_CFG_DEFAULT_FREQ) return;
@@ -292,7 +293,10 @@ static void Config_ParseAndApply_Freq(const uint8_t* rx)
 		{
         g_cfg_freq_hz = f;
         KX134_SetODR(g_cfg_freq_hz);
+        //uint8_t reg_val = KX134_ReadReg(KX134_ODCNTL); // 读 0x21 寄存器
+        g_ResetAcqReq = 1;
     }
+		taskEXIT_CRITICAL();
 }
 
 /**********************************采样配置应答**********************************/
@@ -527,14 +531,7 @@ void Protocol_HandleRxFrame(const uint8_t *rx, uint16_t len, uint8_t local_addre
     case CMD_FEATURE: send_feature_pkt(dev_id, &X_data, &Y_data, &Z_data); break;
 		case CMD_WAVE:Create_Wave_Snapshot();send_wave_ack(dev_id); break;
 		case CMD_WAVE_PACK:	send_wave_pkt(dev_id, Algo_Get_Snapshot_Ptr(), b2, b3); break;
-		case CMD_CONFIG:
-			  switch (b2)
-        {
-        case FREQ: Config_ParseAndApply_Freq(rx);Cfg_SendAck(dev_id); break;
-        //case PORINT: Config_ParseAndApply_Point(rx);Cfg_SendAck(dev_id); break;			
-        default: break;
-        }
-        break;
+		case CMD_CONFIG:Config_ParseAndApply_Freq(rx);Cfg_SendAck(dev_id); break;      
     //case CMD_CALIBRATION:Z_Calib_Z_Upright_Neg1G(g_data_z, 100);CALIBRATION_Config_SendAck(dev_id); break;
     /*case CMD_TEST: 
         switch (b2)
