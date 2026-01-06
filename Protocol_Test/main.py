@@ -93,11 +93,11 @@ def parse_features_and_print(raw_data):
     print("\n" + "=" * 40)
     print(f"传感器特征值报告 (设备 0x{raw_data[0]:02X})")
     print("=" * 40)
-    print(f"【X 轴】 Mean:{floats[0]:.4f}g, RMS:{floats[1]:.4f}g, P-P:{floats[2]:.4f}g, Kurt:{floats[3]:.4f}")
-    print(f"【Y 轴】 Mean:{floats[4]:.4f}g, RMS:{floats[5]:.4f}g, P-P:{floats[6]:.4f}g, Kurt:{floats[7]:.4f}")
+    print(f"【X 轴】 Mean:{floats[0]:.4f}g, RMS:{floats[1]:.4f}mm/s, P-P:{floats[2]:.4f}g, Kurt:{floats[3]:.4f}")
+    print(f"【Y 轴】 Mean:{floats[4]:.4f}g, RMS:{floats[5]:.4f}mm/s, P-P:{floats[6]:.4f}g, Kurt:{floats[7]:.4f}")
 
     # 修改了这里：增加了包络数据的打印
-    print(f"【Z 轴】 Mean:{floats[8]:.4f}g, RMS:{floats[9]:.4f}g, P-P:{floats[10]:.4f}g, Kurt:{floats[11]:.4f}")
+    print(f"【Z 轴】 Mean:{floats[8]:.4f}g, RMS:{floats[9]:.4f}mm/s, P-P:{floats[10]:.4f}g, Kurt:{floats[11]:.4f}")
     print(f"       主频:{floats[12]:.1f}Hz, 幅值:{floats[13]:.4f}g")
     print(f"       包络RMS:{floats[15]:.4f}g, 包络峰值:{floats[16]:.4f}g")
 

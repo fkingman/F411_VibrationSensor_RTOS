@@ -64,8 +64,24 @@ static inline CFFT_PTR_T pick_cfft_u32(uint32_t N)
         default:   return (CFFT_PTR_T)0;
     }
 }*/
-//时域特征计算 (Mean, RMS, PP, Kurt)
 
+static void Remove_DC(float *data, uint32_t len)
+{
+    float sum = 0.0f;
+    
+    // 1. 计算均值
+    for (uint32_t i = 0; i < len; i++) {
+        sum += data[i];
+    }
+    float mean = sum / (float)len;
+
+    // 2. 减去均值
+    for (uint32_t i = 0; i < len; i++) {
+        data[i] -= mean;
+    }
+}
+
+//时域特征计算 (Mean, RMS, PP, Kurt)
 static void Calc_TimeDomain_Only(float32_t *data, uint32_t len, AxisFeatureValue *result)
 {
     float32_t sum = 0.0f;
@@ -107,6 +123,48 @@ static void Calc_TimeDomain_Only(float32_t *data, uint32_t len, AxisFeatureValue
     result->pp   = pp;
     result->kurt = kurt;
 }
+//积分
+static void Integrate_Acc_To_Vel(float *data, uint32_t len)
+{
+    float dt = 1.0f / SAMPLE_FREQ; // 采样间隔 (例如 1/25600)
+    float vel = 0.0f;
+    float val_prev = data[0]; // 上一个点的加速度
+    
+    // 重力加速度常数: 1g ≈ 9806.65 mm/s²
+    const float G_TO_MM_S2 = 9806.65f; 
+
+    for (uint32_t i = 0; i < len; i++) {
+        float val_curr = data[i];
+        
+        // 梯形积分公式: v = v + (a1 + a2) * dt / 2
+        // 转换单位: g -> mm/s
+        vel += (val_prev + val_curr) * 0.5f * dt * G_TO_MM_S2;
+        
+        val_prev = val_curr;
+        
+        // 原地覆盖：现在 data[i] 变成速度了 (mm/s)
+        data[i] = vel;
+    }
+
+    float sum = 0.0f;
+    for (uint32_t i = 0; i < len; i++) sum += data[i];
+    float mean = sum / (float)len;
+
+    for (uint32_t i = 0; i < len; i++) {
+        data[i] -= mean;
+    }
+    
+}
+
+static float Calc_RMS_Only(float *data, uint32_t len)
+{
+    float sumSq = 0.0f;
+    for (uint32_t i = 0; i < len; i++) {
+        sumSq += data[i] * data[i];
+    }
+    return sqrtf(sumSq / (float)len);
+}
+
 //频域特征计算 (Z轴: PeakFreq, PeakAmp, 2xAmp)
 static void Calc_FreqDomain_Z(float32_t *data, uint32_t len)
 {
@@ -148,26 +206,15 @@ static void Calc_FreqDomain_Z(float32_t *data, uint32_t len)
     if (idx_2x < len / 2) Z_data.amp2x = data[idx_2x];
     else Z_data.amp2x = 0.0f;
 }
-//去直流
-static void Remove_DC_And_Rectify(float32_t *data, uint32_t len)
+//去直流取绝对值
+static void Remove_DC_And_Rectify(float *data, uint32_t len)
 {
-    float32_t x_prev = 0;
-    float32_t y_prev = 0;
-    float32_t val;
-    
-    // 简单的 IIR 高通滤波: y[i] = x[i] - x[i-1] + alpha * y[i-1]
-    float mean = 0.0f;
-    for(uint32_t i=0; i<len; i++) mean += data[i];
-    mean /= (float32_t)len;
+    Remove_DC(data, len);
 
     for (uint32_t i = 0; i < len; i++) {
-        val = data[i] - mean; 
-        // data[i] = val;     // 如果需要看原始去直流波形
-        
-        // 2. 检波 (Rectification): 取绝对值
-        // 包络的核心就是把双边振荡变成单边能量
-        if (val < 0.0f) val = -val;
-        data[i] = val; 
+        if (data[i] < 0.0f) {
+            data[i] = -data[i];
+        }
     }
 }
 //包络
@@ -236,14 +283,26 @@ void Process_Data(int16_t *pRawData)
         fftBuf[i] = val;
         //g_WaveZ_Live[i] = val;
     }
-
+    Remove_DC(fftBuf, FFT_POINTS);
+    //Apply_Median_Filter_3(fftBuf, FFT_POINTS);
+    //快照
     if (g_SnapshotReq == 1) {
+        taskENTER_CRITICAL();
         memcpy(g_WaveZ_Tx, fftBuf, FFT_POINTS * sizeof(float));
-        g_SnapshotReq = 0; // 清除请求
+        taskEXIT_CRITICAL();
+        g_SnapshotReq = 0; 
     }
-
     Calc_TimeDomain_Only(fftBuf, FFT_POINTS, &Z_data);
     Calc_FreqDomain_Z(fftBuf, FFT_POINTS);
+
+    for (int i = 0; i < FFT_POINTS; i++) {
+        fftBuf[i] = (float)pRawData[i * 3 + 2] * KX134_SENSITIVITY;
+    }
+    Remove_DC(fftBuf, FFT_POINTS);       
+    //Apply_Median_Filter_3(fftBuf, FFT_POINTS); // 去毛刺
+    Integrate_Acc_To_Vel(fftBuf, FFT_POINTS);       // 积分为速度
+    Z_data.rms = Calc_RMS_Only(fftBuf, FFT_POINTS); // 覆盖为速度 RMS
+
     //fftbuf为频谱数据
     for (int i = 0; i < FFT_POINTS; i++) {
         // 再次从源头读取
