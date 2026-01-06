@@ -10,6 +10,7 @@
 // ================= 寄存器地址=================
 #define KX134_WHO_AM_I      0x13
 #define KX134_CNTL1         0x1B // [cite: 46]
+#define KX134_CNTL2					0x1C
 #define KX134_ODCNTL        0x21 // [cite: 49]
 #define KX134_INC1          0x22 // [cite: 63]
 #define KX134_INC4          0x25 // [cite: 65]
@@ -29,5 +30,5 @@ uint8_t KX134_Init(void);
 void KX134_Read_FIFO_DMA(uint8_t *target_buffer);
 void KX134_CS_High(void); 
 uint8_t KX134_SetODR(uint16_t freq_hz);
-
+uint8_t KX134_ReadReg(uint8_t Reg);
 #endif

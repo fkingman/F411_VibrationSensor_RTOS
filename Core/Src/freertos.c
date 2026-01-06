@@ -172,6 +172,8 @@ void DataTask_Entry(void *argument)
   if (KX134_Init()) {
     KX134_SetODR(g_cfg_freq_hz);
   }
+	memset(g_SensorRawBuffer, 0, sizeof(g_SensorRawBuffer));
+//	uint8_t check_cntl2 = KX134_ReadReg(0x1C);
   uint16_t buffer_offset = 0;// 记录当前填到 Buffer 的哪个位置了 (0 ~ 4096)
     for(;;) {
       ulTaskNotifyTake(pdTRUE, portMAX_DELAY);// Notification 等待EXTI 中断
@@ -194,6 +196,35 @@ void DataTask_Entry(void *argument)
             KX134_CS_High();// 超时处理：如�?? SPI DMA 卡死了，记得在这里拉�?? CS 复位 SPI
         }
     }
+
+		//debug
+//		uint8_t check_cntl1 = KX134_ReadReg(KX134_CNTL1); 
+//		// 预期：0xD8 (1101 1000) -> 16-bit, +/-64g, Operating
+
+//		// 定义临时变量用于 Watch 窗口观察
+//		volatile uint8_t raw_xl, raw_xh, raw_yl, raw_yh, raw_zl, raw_zh;
+//		volatile int16_t acc_z_raw;
+//		volatile float acc_z_g;
+
+//		for(;;) {
+//				// 3. 直接读取 Z 轴输出寄存器 (绕过 FIFO/DMA)
+//				// ZOUT_L = 0x0A, ZOUT_H = 0x0B
+//				raw_zl = KX134_ReadReg(0x0A); 
+//				raw_zh = KX134_ReadReg(0x0B);
+//				
+//				// 合并数据
+//				acc_z_raw = (int16_t)((raw_zh << 8) | raw_zl);
+//				
+//				// 转换物理量 (+/- 64g 量程)
+//				acc_z_g = (float)acc_z_raw * KX134_SENSITIVITY;
+
+//				// 延时一下，方便调试器刷新
+//				osDelay(100); 
+//				
+//				// 观察 check_cntl1, raw_zh, acc_z_g 的值
+//				__NOP(); 
+//		}
+		
 }
 
 void AlgoTask_Entry(void *argument) 

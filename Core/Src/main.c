@@ -111,6 +111,7 @@ int main(void)
 
   /* USER CODE BEGIN 1 */
   SCB->VTOR = 0x0800C000;
+	__enable_irq();	
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -225,7 +226,7 @@ void HAL_SPI_RxCpltCallback(SPI_HandleTypeDef *hspi)
         // 1. 拉高 CS
         KX134_CS_High();
         
-        // 2. 告诉 DataTask：DMA 搬完
+        // 2. DataTask：DMA 搬完
         BaseType_t xHigherPriorityTaskWoken = pdFALSE;
         xSemaphoreGiveFromISR(DmaCpltSem, &xHigherPriorityTaskWoken);
         portYIELD_FROM_ISR(xHigherPriorityTaskWoken);

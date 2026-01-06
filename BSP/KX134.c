@@ -6,18 +6,24 @@
 extern TaskHandle_t DataTaskHandle;
 
 static uint8_t KX134_FreqToHex(uint16_t freq) {
+    uint8_t odr_setting = 0x0F; // 默认最高
+
     switch(freq) {
-        case 25600: return 0x0F;
-        case 12800: return 0x0E;
-        case 6400:  return 0x0D;
-        case 3200:  return 0x0C;
-        case 1600:  return 0x0B;
-        case 800:   return 0x0A;
-        case 400:   return 0x09;
-        case 200:   return 0x08;
-        // 低于200Hz暂不列出，可根据需求补充
-        default:    return 0x0F; // 默认最高
+        case 25600: odr_setting = 0x0F; break;
+        case 12800: odr_setting = 0x0E; break;
+        case 6400:  odr_setting = 0x0D; break;
+        case 3200:  odr_setting = 0x0C; break;
+        case 1600:  odr_setting = 0x0B; break;
+        case 800:   odr_setting = 0x0A; break;
+        case 400:   odr_setting = 0x09; break;
+        case 200:   odr_setting = 0x08; break;
+        default:    odr_setting = 0x0F; break;
     }
+
+    // 低通滤波 (LPRO = 1)
+    // 0x40 (Bit 6) 对应 LPRO 位
+    return odr_setting; 
+		//return odr_setting | 0x40; 
 }
 
 // 内部写函数
@@ -31,7 +37,7 @@ static void KX134_WriteReg(uint8_t Reg, uint8_t Val) {
 }
 
 // 内部读函数
-static uint8_t KX134_ReadReg(uint8_t Reg) {
+uint8_t KX134_ReadReg(uint8_t Reg) {
     uint8_t tx_data = Reg | 0x80; 
     uint8_t rx_data;
     HAL_GPIO_WritePin(KX134_CS_GPIO_Port, KX134_CS_Pin, GPIO_PIN_RESET);
@@ -41,19 +47,47 @@ static uint8_t KX134_ReadReg(uint8_t Reg) {
     return rx_data;
 }
 
+//uint8_t KX134_ReadReg(uint8_t Reg) {
+//    uint8_t tx_data[2];
+//    uint8_t rx_data[2];
+//    
+//    // 构造标准 SPI 读帧：[寄存器地址|0x80] + [Dummy数据]
+//    tx_data[0] = Reg | 0x80; 
+//    tx_data[1] = 0x00;       // 提供时钟用的 Dummy Byte
+//    
+//    HAL_GPIO_WritePin(KX134_CS_GPIO_Port, KX134_CS_Pin, GPIO_PIN_RESET);
+//    
+//    //使用 TransmitReceive 同时收发，保证时钟绝对连续
+//    HAL_SPI_TransmitReceive(&hspi1, tx_data, rx_data, 2, 100);
+//    
+//    HAL_GPIO_WritePin(KX134_CS_GPIO_Port, KX134_CS_Pin, GPIO_PIN_SET);
+//    
+//    // rx_data[0] 是发送地址时收到的（通常无效），rx_data[1] 才是数据
+//    return rx_data[1];
+//}
+
 uint8_t KX134_Init(void) {
+		HAL_NVIC_DisableIRQ(EXTI3_IRQn);
+		KX134_WriteReg(KX134_CNTL1, 0x00);
+	  HAL_Delay(50);
+		KX134_WriteReg(KX134_CNTL2, 0x80);
+		HAL_Delay(50);
+//		uint8_t check_reset = KX134_ReadReg(KX134_CNTL2);
+//		KX134_WriteReg(KX134_CNTL1, 0xAA);
+//		uint8_t test_val = KX134_ReadReg(KX134_CNTL1);
     // 1. 软件复位 (规格书 Page 2: 必须先写 0x00 到 CNTL1 进 Standby [cite: 45])
     KX134_WriteReg(KX134_CNTL1, 0x00); 
-    
+    HAL_Delay(50);
+
     // 复位 Buffer 指针
     KX134_WriteReg(KX134_BUF_CNTL2, 0x80); 
-    HAL_Delay(5);
+    HAL_Delay(50);
     KX134_WriteReg(KX134_BUF_CNTL2, 0x00);
     
     // 2. 检查 ID (KX134-1211 默认 0x46)
-    if (KX134_ReadReg(KX134_WHO_AM_I) != 0x46) {
-        return 0; // ID 错误
-    }
+//    if (KX134_ReadReg(KX134_WHO_AM_I) != 0x46) {
+//        return 0; // ID 错误
+//    }
     
     // 3. 配置 ODR = 25600Hz
     // 虽然规格书只列了 0x06=50Hz [cite: 49]，但标准定义 0x0F=25.6kHz
@@ -87,6 +121,9 @@ uint8_t KX134_Init(void) {
     // 既然用 FIFO，建议关掉 DRDY (Bit5=0) 以免 INT1 被 DRDY 信号干扰
     KX134_WriteReg(KX134_CNTL1, 0xD8); 
     
+		__HAL_GPIO_EXTI_CLEAR_IT(KX134_INT1_Pin);  
+    HAL_NVIC_EnableIRQ(EXTI3_IRQn);
+		
     return 1;
 }
 
@@ -99,14 +136,16 @@ void KX134_Read_FIFO_DMA(uint8_t *target_buffer) {
     uint8_t cmd = KX134_BUF_READ | 0x80;
     HAL_SPI_Transmit(&hspi1, &cmd, 1, 10);
     
-    HAL_SPI_Receive_DMA(&hspi1, target_buffer, FIFO_WATERMARK * BYTES_PER_SAMPLE);
+		HAL_StatusTypeDef status = HAL_SPI_Receive_DMA(&hspi1, target_buffer, FIFO_WATERMARK * 6);		
+		if (status != HAL_OK) {
+					// Error_Handler(); 
+					// 查看 hspi1.ErrorCode
+			}
 }
 
 void KX134_CS_High(void) {
     HAL_GPIO_WritePin(KX134_CS_GPIO_Port, KX134_CS_Pin, GPIO_PIN_SET);
 }
-
-
 
 uint8_t KX134_SetODR(uint16_t freq_hz) {
     uint8_t odr_val = KX134_FreqToHex(freq_hz);

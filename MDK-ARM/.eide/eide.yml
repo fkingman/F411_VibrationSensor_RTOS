@@ -20,6 +20,7 @@ virtualFolder:
           folders:
             - name: Core
               files:
+                - path: ../Core/Src/arm_cortexM4lf_math.lib
                 - path: ../Core/Src/main.c
                 - path: ../Core/Src/gpio.c
                 - path: ../Core/Src/freertos.c
@@ -29,7 +30,6 @@ virtualFolder:
                 - path: ../Core/Src/stm32f4xx_it.c
                 - path: ../Core/Src/stm32f4xx_hal_msp.c
                 - path: ../Core/Src/stm32f4xx_hal_timebase_tim.c
-                - path: ../Core/Src/arm_cortexM4lf_math.lib
               folders: []
     - name: Drivers
       files: []
@@ -76,15 +76,15 @@ virtualFolder:
           folders: []
     - name: BSP
       files:
-        - path: ../BSP/KX134.c
-        - path: ../BSP/KX134.h
+        - path: ../BSP/bytes.h
         - path: ../BSP/Eigenvalue calculation.c
         - path: ../BSP/Eigenvalue calculation.h
-        - path: ../BSP/bytes.h
-        - path: ../BSP/protocol.c
-        - path: ../BSP/protocol.h
         - path: ../BSP/flash.c
         - path: ../BSP/flash.h
+        - path: ../BSP/KX134.c
+        - path: ../BSP/KX134.h
+        - path: ../BSP/protocol.c
+        - path: ../BSP/protocol.h
       folders: []
     - name: ::CMSIS
       files: []
@@ -122,7 +122,15 @@ targets:
         floatingPointHardware: single
         options:
           version: 4
-          afterBuildTasks: []
+          afterBuildTasks:
+            - name: "[Copy linker output for Keil User Commands]"
+              abortAfterFailed: true
+              command: mkdir ${KEIL_OUTPUT_DIR} & copy "${OutDir}\${ProjectName}.axf" "${KEIL_OUTPUT_DIR}\${ProjectName}.axf"
+              disable: false
+            - name: fromelf.exe --bin -o "$L@L.bin" "#L"
+              abortAfterFailed: true
+              command: fromelf.exe --bin -o "${KEIL_OUTPUT_DIR}\${ProjectName}.bin" "${KEIL_OUTPUT_DIR}\${ProjectName}.axf"
+              disable: false
           asm-compiler: {}
           beforeBuildTasks: []
           c/cpp-compiler:
@@ -130,7 +138,7 @@ targets:
             C_FLAGS: --diag_suppress=1 --diag_suppress=1295
             c99-mode: true
             one-elf-section-per-function: true
-            optimization: level-3
+            optimization: level-0
             warnings: all-warnings
           global:
             output-debug-info: enable
@@ -206,8 +214,8 @@ targets:
               isChecked: true
               isStartup: true
               mem:
-                size: "0x80000"
-                startAddr: "0x8000000"
+                size: "0x34000"
+                startAddr: "0x800c000"
               tag: IROM
             - id: 2
               isChecked: false

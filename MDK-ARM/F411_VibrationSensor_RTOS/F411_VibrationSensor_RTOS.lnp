@@ -1,5 +1,6 @@
 --cpu=Cortex-M4.fp.sp
 "f411_vibrationsensor_rtos\startup_stm32f411xe.o"
+"..\Core\Src\arm_cortexM4lf_math.lib"
 "f411_vibrationsensor_rtos\main.o"
 "f411_vibrationsensor_rtos\gpio.o"
 "f411_vibrationsensor_rtos\freertos.o"
@@ -9,7 +10,6 @@
 "f411_vibrationsensor_rtos\stm32f4xx_it.o"
 "f411_vibrationsensor_rtos\stm32f4xx_hal_msp.o"
 "f411_vibrationsensor_rtos\stm32f4xx_hal_timebase_tim.o"
-"..\Core\Src\arm_cortexM4lf_math.lib"
 "f411_vibrationsensor_rtos\stm32f4xx_hal_rcc.o"
 "f411_vibrationsensor_rtos\stm32f4xx_hal_rcc_ex.o"
 "f411_vibrationsensor_rtos\stm32f4xx_hal_flash.o"
@@ -38,6 +38,10 @@
 "f411_vibrationsensor_rtos\cmsis_os2.o"
 "f411_vibrationsensor_rtos\heap_4.o"
 "f411_vibrationsensor_rtos\port.o"
+"f411_vibrationsensor_rtos\eigenvalue calculation.o"
+"f411_vibrationsensor_rtos\flash.o"
+"f411_vibrationsensor_rtos\kx134.o"
+"f411_vibrationsensor_rtos\protocol.o"
 --library_type=microlib --strict --scatter "F411_VibrationSensor_RTOS\F411_VibrationSensor_RTOS.sct"
 --summary_stderr --info summarysizes --map --load_addr_map_info --xref --callgraph --symbols
 --info sizes --info totals --info unused --info veneers

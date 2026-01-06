@@ -148,7 +148,7 @@ static void Calc_FreqDomain_Z(float32_t *data, uint32_t len)
 }
 
 
-void print_FEATURE(void)
+/*void print_FEATURE(void)
 {
     printf("========== Vibration Analysis Result ==========\r\n");
     printf("[X-Axis] Mean = %6.3f g   RMS = %6.3f g\r\n", X_data.mean, X_data.rms);
@@ -165,7 +165,7 @@ void print_FEATURE(void)
     printf("[Z-Enve] Env Vrms  = %.3f g     Env Peak = %.3f g\r\n", 
            Z_data.envelope_vrms, Z_data.envelope_peak);
     printf("===============================================\r\n\n");
-}
+}*/
 	
 void Process_Data(int16_t *pRawData)
 {	  
