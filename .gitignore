@@ -1,0 +1,24 @@
+# Keil MDK ignore files
+*.o
+*.d
+*.crf
+*.dep
+*.axf
+*.htm
+*.lnp
+*.sct
+*.lst
+*.map
+*.hex
+*.bin
+*.uvguix.*
+*.uvoptx
+*.uvgui.*
+JLinkLog.txt
+*.bak
+RTE/
+
+# Objects and Listings folders
+Objects/
+Listings/
+DebugConfig/
