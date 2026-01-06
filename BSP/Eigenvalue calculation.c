@@ -126,7 +126,8 @@ static void Calc_TimeDomain_Only(float32_t *data, uint32_t len, AxisFeatureValue
 //积分
 static void Integrate_Acc_To_Vel(float *data, uint32_t len)
 {
-    float dt = 1.0f / SAMPLE_FREQ; // 采样间隔 (例如 1/25600)
+    if (g_cfg_freq_hz == 0) return;
+    float dt = 1.0f / (float)g_cfg_freq_hz; // 采样间隔 (例如 1/25600)
     float vel = 0.0f;
     float val_prev = data[0]; // 上一个点的加速度
     
@@ -167,11 +168,7 @@ static void Calc_RMS_Only(float *data, uint32_t len , AxisFeatureValue *result)
 
 //频域特征计算 (Z轴: PeakFreq, PeakAmp, 2xAmp)
 static void Calc_FreqDomain_Z(float32_t *data, uint32_t len , AxisFeatureValue *result)
-{
-    // 注意：arm_rfft_fast_f32 输出格式是 packed 格式，需要临时 buffer 或原地处理
-    // 这里为了省内存，我们复用 fftBuf 作为输出，但这需要小心处理
-    // RFFT 的输出也是 len 长度的 float
-    
+{   
     // 执行 RFFT
     // data 是输入 (时域)，也是输出 (频域 packed)
     arm_rfft_fast_f32(&S_rfft, data, data, 0);
@@ -197,7 +194,7 @@ static void Calc_FreqDomain_Z(float32_t *data, uint32_t len , AxisFeatureValue *
         }
     }
 
-    float32_t freq_res = SAMPLE_FREQ / (float32_t)len;
+    float32_t freq_res = g_cfg_freq_hz / (float32_t)len;
     result->peakFreq = (float32_t)maxIndex * freq_res;
     result->peakAmp  = maxAmp;
 
