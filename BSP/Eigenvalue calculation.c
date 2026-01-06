@@ -156,17 +156,17 @@ static void Integrate_Acc_To_Vel(float *data, uint32_t len)
     
 }
 
-static float Calc_RMS_Only(float *data, uint32_t len)
+static void Calc_RMS_Only(float *data, uint32_t len , AxisFeatureValue *result)
 {
     float sumSq = 0.0f;
     for (uint32_t i = 0; i < len; i++) {
         sumSq += data[i] * data[i];
     }
-    return sqrtf(sumSq / (float)len);
+    result->rms =  sqrtf(sumSq / (float)len);
 }
 
 //频域特征计算 (Z轴: PeakFreq, PeakAmp, 2xAmp)
-static void Calc_FreqDomain_Z(float32_t *data, uint32_t len)
+static void Calc_FreqDomain_Z(float32_t *data, uint32_t len , AxisFeatureValue *result)
 {
     // 注意：arm_rfft_fast_f32 输出格式是 packed 格式，需要临时 buffer 或原地处理
     // 这里为了省内存，我们复用 fftBuf 作为输出，但这需要小心处理
@@ -198,13 +198,13 @@ static void Calc_FreqDomain_Z(float32_t *data, uint32_t len)
     }
 
     float32_t freq_res = SAMPLE_FREQ / (float32_t)len;
-    Z_data.peakFreq = (float32_t)maxIndex * freq_res;
-    Z_data.peakAmp  = maxAmp;
+    result->peakFreq = (float32_t)maxIndex * freq_res;
+    result->peakAmp  = maxAmp;
 
     // 2x 频
     uint32_t idx_2x = maxIndex * 2;
-    if (idx_2x < len / 2) Z_data.amp2x = data[idx_2x];
-    else Z_data.amp2x = 0.0f;
+    if (idx_2x < len / 2) result->amp2x = data[idx_2x];
+    else result->amp2x = 0.0f;
 }
 //去直流取绝对值
 static void Remove_DC_And_Rectify(float *data, uint32_t len)
@@ -218,7 +218,7 @@ static void Remove_DC_And_Rectify(float *data, uint32_t len)
     }
 }
 //包络
-static void Calc_Envelope_Stats(float32_t *env_data, uint32_t len)
+static void Calc_Envelope_Stats(float32_t *env_data, uint32_t len, AxisFeatureValue *result)
 {
     float32_t sum = 0.0f;
     float32_t sumSq = 0.0f;
@@ -237,10 +237,10 @@ static void Calc_Envelope_Stats(float32_t *env_data, uint32_t len)
         if (val > maxVal) maxVal = val;
     }
     // 包络 RMS
-    Z_data.envelope_vrms = sqrtf(sumSq / (float32_t)len);
+    result->envelope_vrms = sqrtf(sumSq / (float32_t)len);
     
     // 包络峰值 (反映轴承缺陷的冲击强度)
-    Z_data.envelope_peak = maxVal;
+    result->envelope_peak = maxVal;
 }
 
 
@@ -268,14 +268,20 @@ void Process_Data(int16_t *pRawData)
     for (int i = 0; i < FFT_POINTS; i++) {
         // 解交错 + 转换 float + 物理量变换
         fftBuf[i] = (float)pRawData[i * 3 + 0] * KX134_SENSITIVITY;
-    }
+    }        
     Calc_TimeDomain_Only(fftBuf, FFT_POINTS, &X_data);
+    Remove_DC(fftBuf, FFT_POINTS);   
+    Integrate_Acc_To_Vel(fftBuf, FFT_POINTS);       
+    Calc_RMS_Only(fftBuf, FFT_POINTS, &X_data);
 
     // --- 处理 Y 轴 ---
     for (int i = 0; i < FFT_POINTS; i++) {
         fftBuf[i] = (float)pRawData[i * 3 + 1] * KX134_SENSITIVITY;
     }
     Calc_TimeDomain_Only(fftBuf, FFT_POINTS, &Y_data);
+    Remove_DC(fftBuf, FFT_POINTS);       
+    Integrate_Acc_To_Vel(fftBuf, FFT_POINTS);       
+    Calc_RMS_Only(fftBuf, FFT_POINTS, &Y_data);
 
     // --- 处理 Z 轴 (含频域) ---
     for (int i = 0; i < FFT_POINTS; i++) {
@@ -294,7 +300,7 @@ void Process_Data(int16_t *pRawData)
         taskEXIT_CRITICAL();
         g_SnapshotReq = 0; 
     }
-    Calc_FreqDomain_Z(fftBuf, FFT_POINTS);
+    Calc_FreqDomain_Z(fftBuf, FFT_POINTS, &Z_data);
 
     for (int i = 0; i < FFT_POINTS; i++) {
         fftBuf[i] = (float)pRawData[i * 3 + 2] * KX134_SENSITIVITY;
@@ -302,7 +308,7 @@ void Process_Data(int16_t *pRawData)
     Remove_DC(fftBuf, FFT_POINTS);       
     //Apply_Median_Filter_3(fftBuf, FFT_POINTS); // 去毛刺
     Integrate_Acc_To_Vel(fftBuf, FFT_POINTS);       // 积分为速度
-    Z_data.rms = Calc_RMS_Only(fftBuf, FFT_POINTS); // 覆盖为速度 RMS
+    Calc_RMS_Only(fftBuf, FFT_POINTS, &Z_data); // 覆盖为速度 RMS
 
     //fftbuf为频谱数据
     for (int i = 0; i < FFT_POINTS; i++) {
@@ -311,7 +317,7 @@ void Process_Data(int16_t *pRawData)
         fftBuf[i] = val;
     }
     Remove_DC_And_Rectify(fftBuf, FFT_POINTS);
-    Calc_Envelope_Stats(fftBuf, FFT_POINTS);
+    Calc_Envelope_Stats(fftBuf, FFT_POINTS, &Z_data);
 }
 
 
