@@ -10,8 +10,8 @@ volatile uint8_t g_SnapshotReq = 0;
 
 float g_z_offset_g  = 0.0f;   // 0g 偏移
 
-extern const arm_cfft_instance_f32 arm_cfft_sR_f32_len1024;
-#define CFFT (&arm_cfft_sR_f32_len1024)
+//extern const arm_cfft_instance_f32 arm_cfft_sR_f32_len1024;
+//#define CFFT (&arm_cfft_sR_f32_len1024)
 
 //计算初始化函数
 void Calc_Init(void)

@@ -14,7 +14,7 @@ import sys
 CONFIG = {
     'PORT': 'COM9',  # 默认串口号
     'BAUD': 9600,  # 波特率
-    'ADDR': 0x01,  # 默认目标设备地址 (非广播时使用)
+    'ADDR': 0x00,  # 默认目标设备地址 (非广播时使用)
     'TIMEOUT': 2.0,  # 默认超时
     'OTA_FILE': 'F411_VibrationSensor_RTOS.bin',  # OTA固件名
     'SAVE_DIR': 'wave_data',  # 波形保存路径
