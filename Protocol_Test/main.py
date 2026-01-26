@@ -135,7 +135,7 @@ def task_scan_devices(timeout=5.0, silent=False):
             while True:
                 frame, rx_buffer = parse_packet_from_buffer(rx_buffer)
                 if frame:
-                    addr = frame[0]
+                    addr = frame[15]
                     uid_raw = frame[3:15]
                     uid_str = uid_raw.hex().upper()
 

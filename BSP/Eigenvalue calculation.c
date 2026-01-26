@@ -1,6 +1,8 @@
 #include "Eigenvalue calculation.h"
 #include <string.h>
 
+#define MIN_VALID_PEAK_AMP  0.04f
+
 static arm_rfft_fast_instance_f32 S_rfft;
 static float32_t fftBuf[FFT_POINTS]; 
 AxisFeatureValue X_data,Y_data,Z_data;
@@ -193,7 +195,12 @@ static void Calc_FreqDomain_Z(float32_t *data, uint32_t len , AxisFeatureValue *
             maxIndex = i;
         }
     }
-
+		if (maxAmp < MIN_VALID_PEAK_AMP) {
+		// 如果最大值都没超过门限，说明是静置噪音
+		result->peakFreq = 0.0f; // 强制置零
+		result->peakAmp  = 0.0f; // 或者保留 maxAmp 作为底噪参考，看你需求
+		result->amp2x    = 0.0f;
+		} else {
     float32_t freq_res = g_cfg_freq_hz / (float32_t)len;
     result->peakFreq = (float32_t)maxIndex * freq_res;
     result->peakAmp  = maxAmp;
@@ -202,6 +209,7 @@ static void Calc_FreqDomain_Z(float32_t *data, uint32_t len , AxisFeatureValue *
     uint32_t idx_2x = maxIndex * 2;
     if (idx_2x < len / 2) result->amp2x = data[idx_2x];
     else result->amp2x = 0.0f;
+		}
 }
 //去直流取绝对值
 static void Remove_DC_And_Rectify(float *data, uint32_t len)
