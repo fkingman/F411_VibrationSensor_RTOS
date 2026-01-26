@@ -20,6 +20,7 @@
 #include "main.h"
 #include "cmsis_os.h"
 #include "dma.h"
+#include "iwdg.h"
 #include "spi.h"
 #include "usart.h"
 #include "gpio.h"
@@ -55,7 +56,7 @@ PingPong_Mgr_t g_PingPongMgr = {0, 1, 0};
 uint8_t rx_dma_buf[UART_RX_BUF_SIZE];  
 uint8_t g_UartRxBuffer[UART_RX_BUF_SIZE];
 volatile uint16_t g_UartRxLen = 0;//实际接收字节
-extern SemaphoreHandle_t DmaCpltSem;//DMA信号量
+extern SemaphoreHandle_t DmaCpltSem;//DMA信号�?
 
 uint8_t LOCAL_DEVICE_ADDR = FLASH_CFG_DEFAULT_ADDR;
 uint16_t g_cfg_freq_hz = FLASH_CFG_DEFAULT_FREQ;
@@ -81,7 +82,7 @@ void App_ConfigInit()
     uint16_t freq;
     uint16_t points;
 	
-    /*从 Flash 载入设备地址，不合法则为 0x00(广播地址) */
+    /*�? Flash 载入设备地址，不合法则为 0x00(广播地址) */
 		Flash_ReadConfig(&addr, &freq, &points);	
 		if (addr == 0xFF) addr = 0x00;
 
@@ -135,6 +136,7 @@ int main(void)
   MX_DMA_Init();
   MX_USART1_UART_Init();
   MX_SPI1_Init();
+  MX_IWDG_Init();
   /* USER CODE BEGIN 2 */
   App_ConfigInit();
   Uart1_RxStart();
@@ -179,9 +181,10 @@ void SystemClock_Config(void)
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI|RCC_OSCILLATORTYPE_LSI;
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
   RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
+  RCC_OscInitStruct.LSIState = RCC_LSI_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
   RCC_OscInitStruct.PLL.PLLM = 8;

@@ -6,11 +6,15 @@
 #define PROTOCOL_UART huart1
 #define RX_MIN_LEN     7          
 
+#define MAX_SAMPLE_FREQ_HZ   25600 
+#define MIN_SAMPLE_FREQ_HZ   200   
+
 extern uint16_t g_cfg_freq_hz;
 extern uint16_t g_cfg_points;
 
 extern uint8_t LOCAL_DEVICE_ADDR;
 
+extern TaskHandle_t DataTaskHandle; 
 volatile uint8_t g_tx_busy;
 static uint32_t s_received_bytes = 0;
 
@@ -317,19 +321,22 @@ static bool HandleSetAddr_Broadcast(const uint8_t* rx, uint16_t flen)
 /**********************************解析配置帧**********************************/
 static void Config_ParseAndApply_Freq(const uint8_t* rx)
 {
-		taskENTER_CRITICAL();
+		//taskENTER_CRITICAL();
 		uint16_t f = rd_be16(&rx[3]);        // dev|cmd|sub 之后 4 字节
 		if (f == 0) return;             // 0 无效，直接忽略
-		if (f > FLASH_CFG_DEFAULT_FREQ) return;
-		if (f == g_cfg_freq_hz) return;
+		if (f < MIN_SAMPLE_FREQ_HZ || f > MAX_SAMPLE_FREQ_HZ) {
+        return; 
+    }
     if (Flash_UpdateFreq(f) == HAL_OK) 
 		{
+				vTaskSuspend(DataTaskHandle);
         g_cfg_freq_hz = f;
         KX134_SetODR(g_cfg_freq_hz);
         //uint8_t reg_val = KX134_ReadReg(KX134_ODCNTL); // 读 0x21 寄存器
         g_ResetAcqReq = 1;
+				vTaskResume(DataTaskHandle);
     }
-		taskEXIT_CRITICAL();
+		//taskEXIT_CRITICAL();
 }
 
 /**********************************采样配置应答**********************************/

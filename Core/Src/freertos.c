@@ -178,8 +178,8 @@ void DataTask_Entry(void *argument)
     for(;;) {
       ulTaskNotifyTake(pdTRUE, portMAX_DELAY);// Notification 等待EXTI 中断
       if (g_ResetAcqReq == 1) {
-            // 收到重置命令：
-            buffer_offset = 0;              // 指针归零，丢弃这一包数据
+            // 收到重置命令�?
+            buffer_offset = 0;              // 指针归零，丢弃这�?包数�?
             g_ResetAcqReq = 0;              // 清除标志           
             memset(g_SensorRawBuffer[g_PingPongMgr.write_index], 0, sizeof(g_SensorRawBuffer[0]));
             continue; 
@@ -200,13 +200,13 @@ void DataTask_Entry(void *argument)
         }
       }
       else {           
-            KX134_CS_High();// 超时处理：如�?? SPI DMA 卡死了，记得在这里拉�?? CS 复位 SPI
+            KX134_CS_High();// 超时处理：如�??? SPI DMA 卡死了，记得在这里拉�??? CS 复位 SPI
         }
     }
 
 		//debug
 //		uint8_t check_cntl1 = KX134_ReadReg(KX134_CNTL1); 
-//		// 预期：0xD8 (1101 1000) -> 16-bit, +/-64g, Operating
+//		// 预期�?0xD8 (1101 1000) -> 16-bit, +/-64g, Operating
 
 //		// 定义临时变量用于 Watch 窗口观察
 //		volatile uint8_t raw_xl, raw_xh, raw_yl, raw_yh, raw_zl, raw_zh;
@@ -222,13 +222,13 @@ void DataTask_Entry(void *argument)
 //				// 合并数据
 //				acc_z_raw = (int16_t)((raw_zh << 8) | raw_zl);
 //				
-//				// 转换物理量 (+/- 64g 量程)
+//				// 转换物理�? (+/- 64g 量程)
 //				acc_z_g = (float)acc_z_raw * KX134_SENSITIVITY;
 
-//				// 延时一下，方便调试器刷新
+//				// 延时�?下，方便调试器刷�?
 //				osDelay(100); 
 //				
-//				// 观察 check_cntl1, raw_zh, acc_z_g 的值
+//				// 观察 check_cntl1, raw_zh, acc_z_g 的�??
 //				__NOP(); 
 //		}
 		
