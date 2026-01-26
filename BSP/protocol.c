@@ -62,8 +62,14 @@ uint16_t Modbus_CRC16(const uint8_t *data, uint16_t length)
 
 static HAL_StatusTypeDef uart_send_dma(uint8_t *buf, uint16_t len)
 {
-    if (g_tx_busy) return HAL_BUSY;
+		uint32_t timeout_cnt = 0;
     
+    while (g_tx_busy) {
+        vTaskDelay(1); 
+        timeout_cnt++;
+        if (timeout_cnt > 50) return HAL_BUSY; 
+    }    
+		
     g_tx_busy = 1; 
     return HAL_UART_Transmit_DMA(&PROTOCOL_UART, buf, len);
 }
