@@ -35,6 +35,8 @@ TaskHandle_t DataTaskHandle;
 TaskHandle_t AlgoTaskHandle;
 TaskHandle_t CommTaskHandle;
 
+extern IWDG_HandleTypeDef hiwdg;
+
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -56,7 +58,7 @@ osThreadId_t defaultTaskHandle;
 const osThreadAttr_t defaultTask_attributes = {
   .name = "defaultTask",
   .stack_size = 128 * 4,
-  .priority = (osPriority_t) osPriorityNormal,
+  .priority = (osPriority_t) osPriorityIdle,
 };
 
 /* Private function prototypes -----------------------------------------------*/
@@ -155,11 +157,12 @@ void StartDefaultTask(void *argument)
   xTaskCreate(AlgoTask_Entry, "AlgoTask", 2048, NULL, osPriorityAboveNormal, &AlgoTaskHandle);
   xTaskCreate(CommTask_Entry, "CommTask", 512, NULL, osPriorityNormal, &CommTaskHandle);
   DmaCpltSem = xSemaphoreCreateBinary();
-  vTaskDelete(NULL);
+  //vTaskDelete(NULL);
   /* Infinite loop */
   for(;;)
   {
-    osDelay(1);
+		HAL_IWDG_Refresh(&hiwdg);
+    osDelay(10);
   }
   /* USER CODE END StartDefaultTask */
 }
