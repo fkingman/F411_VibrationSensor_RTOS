@@ -60,6 +60,26 @@ uint16_t Modbus_CRC16(const uint8_t *data, uint16_t length)
     return crc;                     
 }
 
+// 针对 Flash 的流式 CRC32 校验函数
+static uint32_t Calc_Flash_CRC32(uint32_t start_addr, uint32_t len)
+{
+    uint32_t crc = 0xFFFFFFFF;
+    const uint8_t *p = (const uint8_t *)start_addr;
+    
+    while (len--)
+    {
+        crc ^= *p++; // 从 Flash 直接读取
+        for (uint32_t i = 0; i < 8; i++)
+        {
+            if (crc & 1)
+                crc = (crc >> 1) ^ 0xEDB88320;
+            else
+                crc = (crc >> 1);
+        }
+    }
+    return ~crc;
+}
+
 static HAL_StatusTypeDef uart_send_dma(uint8_t *buf, uint16_t len)
 {
 		uint32_t timeout_cnt = 0;
@@ -225,7 +245,7 @@ static void send_discover_rsp(uint8_t cur_addr)
     UID_Fill_BE_w0w1w2(uid); // 获取唯一ID
 
     /* --- 1. 构造报文 --- */
-    *p++ = cur_addr;       // 地址
+    *p++ = 0x00;       // 地址
     *p++ = CMD_DISCOVER;   // 功能码
     *p++ = 13;             // 长度
     memcpy(p, uid, 12);    // UID
@@ -339,6 +359,8 @@ static void Config_ParseAndApply_Freq(const uint8_t* rx)
         g_cfg_freq_hz = f;
         KX134_SetODR(g_cfg_freq_hz);
         //uint8_t reg_val = KX134_ReadReg(KX134_ODCNTL); // 读 0x21 寄存器
+				Algo_Update_LPF_Coeff(g_cfg_freq_hz);
+				Algo_Update_HPF_Coeff(g_cfg_freq_hz);
         g_ResetAcqReq = 1;
 				vTaskResume(DataTaskHandle);
     }
@@ -506,37 +528,45 @@ static void Handle_OTA_Data(uint8_t dev_id, const uint8_t *rx_data, uint16_t fra
 }
 
 // 3. 处理 OTA 结束命令
-// 主机发送: [DevID] [0x52] [TotalLen(4B)] [CRC]
+// 主机发送: [DevID] [0x52] [Len(4B)] [WholeCRC32(4B)] [CRC16]
 static void Handle_OTA_End(uint8_t dev_id, const uint8_t *rx_data)
 {
-    uint32_t fw_len = rd_be32(rx_data);
-    
-    if (fw_len == 0 || s_received_bytes != fw_len)
+		uint32_t fw_len = rd_be32(rx_data);     // 前4字节是长度
+    uint32_t host_crc = rd_be32(rx_data + 4); // 后4字节是上位机算好的 CRC32
+
+		if (fw_len == 0 || s_received_bytes != fw_len)
     {
-        // 长度校验失败，不升级
         return; 
     }
+		
+		uint32_t calc_crc = Calc_Flash_CRC32(OTA_DOWNLOAD_ADDR, fw_len);
+		
+		if (calc_crc != host_crc)//错误回复
+    {
+        // Flash 里的数据和上位机发的不一致！
+        // 此时绝对不能重启，否则 Bootloader 会刷入损坏的固件
+        static uint8_t tx_err[8]; uint8_t *p = tx_err;
+        *p++ = dev_id; *p++ = CMD_OTA_END ; *p++ = 0x02; // 异常响应
+        *p++ = 0xBA; *p++ = 0xD1; // 错误码 BAD1
+        uint16_t crc = Modbus_CRC16(tx_err, 4);
+        *p++ = (uint8_t)crc; *p++ = (uint8_t)(crc >> 8);
+        uart_send_dma(tx_err, 6);
+        return; 
+    }
+		//正确回ACK
+		static uint8_t tx[7];uint8_t *p = tx;
+		*p++ = dev_id; *p++ = CMD_OTA_START; *p++ = 0x02; *p++ = 0x4F; *p++ = 0x4B; // 4F4B OK
+		uint16_t crc = Modbus_CRC16(tx, (uint16_t)(p - tx));
+		*p++ = (uint8_t)crc; *p++ = (uint8_t)(crc >> 8);
+	
+    // 使用阻塞发送，确保重启前发出去
+    HAL_UART_Transmit(&huart1, tx, 7, 100); 
 
-    // 1. 回复 ACK 
-    static uint8_t tx[7];
-    uint8_t *p = tx;
-    *p++ = dev_id; 
-    *p++ = CMD_OTA_END; // 修正：原代码此处回复的是 CMD_OTA_START (0x50)，改为 END (0x52) 对应
-    *p++ = 0x02; *p++ = 0x4F; *p++ = 0x4B; 
-    
-    uint16_t crc = Modbus_CRC16(tx, (uint16_t)(p - tx));
-    *p++ = (uint8_t)(crc & 0xFF); 
-    *p++ = (uint8_t)(crc >> 8);
-  
-    // 使用阻塞发送，确保重启前数据已发出
-    // 注意：Protocol_UART 宏在 protocol.c 中定义为 huart1
-    HAL_UART_Transmit(&PROTOCOL_UART, tx, 7, 100); 
-
-    // 2. 设置标志位 (调用 flash.c 接口，保留参数区)
-    Flash_SetOTAInfo(OTA_FLAG_UPDATE_NEEDED, fw_len);
-
+    // 2. 设置标志位 (请求 Bootloader 升级)
+		Flash_SetOTAInfo(OTA_FLAG_UPDATE_NEEDED, fw_len, calc_crc);
+		
     // 3. 重启
-    HAL_Delay(50); // 稍作延时
+    HAL_Delay(100);
     HAL_NVIC_SystemReset();
 }
 

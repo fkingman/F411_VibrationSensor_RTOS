@@ -119,8 +119,9 @@ uint8_t KX134_Init(void) {
     // PC1(1)|RES(1)|DRDYE(0)|GSEL(11) = 1101 1000 = 0xD8 (不带DRDY)
     // 或者 1111 1000 = 0xF8 (带 DRDY)
     // 既然用 FIFO，建议关掉 DRDY (Bit5=0) 以免 INT1 被 DRDY 信号干扰
-    KX134_WriteReg(KX134_CNTL1, 0xD8); 
-    
+    //KX134_WriteReg(KX134_CNTL1, 0xD8); //64g
+    KX134_WriteReg(KX134_CNTL1, 0xC8);//16g
+		
 		__HAL_GPIO_EXTI_CLEAR_IT(KX134_INT1_Pin);  
     HAL_NVIC_EnableIRQ(EXTI3_IRQn);
 		

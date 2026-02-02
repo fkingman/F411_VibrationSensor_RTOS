@@ -17,4 +17,6 @@ version: "2.1"
 options:
     F411_VibrationSensor_RTOS:
         files: {}
-        virtualPathFiles: {}
+        virtualPathFiles:
+            <virtual_root>/Application/User/Core/iwdg.c: ""
+            <virtual_root>/Drivers/STM32F4xx_HAL_Driver/stm32f4xx_hal_iwdg.c: ""

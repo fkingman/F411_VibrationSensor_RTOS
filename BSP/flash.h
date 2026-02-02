@@ -53,7 +53,7 @@ void Flash_ReadConfig(uint8_t* out_addr, uint16_t* out_freq, uint16_t* out_point
 HAL_StatusTypeDef Flash_WriteConfig(uint8_t addr, uint16_t freq, uint16_t points);
 
 void Flash_ReadOTAInfo(uint32_t* out_flag, uint32_t* out_len);
-HAL_StatusTypeDef Flash_SetOTAInfo(uint32_t flag, uint32_t len);
+HAL_StatusTypeDef Flash_SetOTAInfo(uint32_t flag, uint32_t len, uint32_t crc);
 
 uint8_t Flash_ReadDeviceAddr(void);
 HAL_StatusTypeDef Flash_WriteDeviceAddr(uint8_t new_addr);
