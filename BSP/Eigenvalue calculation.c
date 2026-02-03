@@ -303,15 +303,8 @@ static void Integrate_Acc_To_Vel(float *data, uint32_t len)
         // 原地覆盖：现在 data[i] 变成速度了 (mm/s)
         data[i] = vel;
     }
-
-    float sum = 0.0f;
-    for (uint32_t i = 0; i < len; i++) sum += data[i];
-    float mean = sum / (float)len;
-
-    for (uint32_t i = 0; i < len; i++) {
-        data[i] -= mean;
-    }
-    
+		// 积分后必须再次去直流，消除积分漂移
+		Remove_DC(data, len);
 }
 
 static void Calc_RMS_Only(float *data, uint32_t len , AxisFeatureValue *result)
@@ -421,12 +414,11 @@ void Process_Data(int16_t *pRawData)
     for (int i = 0; i < FFT_POINTS; i++) {
         fftBuf[i] = (float)pRawData[i * 3 + 0] * KX134_SENSITIVITY;
     }
-		Apply_Median_Filter_3(fftBuf, FFT_POINTS);//去毛刺
+		Apply_Median_Filter_3(fftBuf, FFT_POINTS);//去毛刺		
+		HighPassFilter_10Hz(fftBuf, FFT_POINTS);		//10hz高通		
 		LowPassFilter_1kHz(fftBuf, FFT_POINTS);		//1khz低通
 		Calc_TimeDomain_Only(fftBuf, FFT_POINTS, &X_data);
-		HighPassFilter_10Hz(fftBuf, FFT_POINTS);		//10hz高通		
-		Remove_DC(fftBuf, FFT_POINTS);             // 去直流
-    Integrate_Acc_To_Vel(fftBuf, FFT_POINTS);       
+    Integrate_Acc_To_Vel(fftBuf, FFT_POINTS);    // 内部去直流   
     Calc_RMS_Only(fftBuf, FFT_POINTS, &X_data);
 
     // --- 处理 Y 轴 ---
@@ -434,10 +426,9 @@ void Process_Data(int16_t *pRawData)
         fftBuf[i] = (float)pRawData[i * 3 + 1] * KX134_SENSITIVITY;
     }
 		Apply_Median_Filter_3(fftBuf, FFT_POINTS);//去毛刺
+		HighPassFilter_10Hz(fftBuf, FFT_POINTS);		//10hz高通	
 		LowPassFilter_1kHz(fftBuf, FFT_POINTS);		//1khz低通
 		Calc_TimeDomain_Only(fftBuf, FFT_POINTS, &Y_data);
-		HighPassFilter_10Hz(fftBuf, FFT_POINTS);		//10hz高通	
-		Remove_DC(fftBuf, FFT_POINTS);             // 去直流		
     Integrate_Acc_To_Vel(fftBuf, FFT_POINTS);      
     Calc_RMS_Only(fftBuf, FFT_POINTS, &Y_data);
 
@@ -459,10 +450,9 @@ void Process_Data(int16_t *pRawData)
     }
 		Apply_Median_Filter_3(fftBuf, FFT_POINTS);
     LowPassFilter_1kHz(fftBuf, FFT_POINTS);
+		HighPassFilter_10Hz(fftBuf, FFT_POINTS);		//10hz高通	
 		Calc_TimeDomain_Only(fftBuf, FFT_POINTS, &Z_data);
-		Z_data.mean = 	Z_data.mean - 1;	
 		HighPassFilter_10Hz(fftBuf, FFT_POINTS);   // 10Hz 高通
-		Remove_DC(fftBuf, FFT_POINTS);             // 去直流
     Integrate_Acc_To_Vel(fftBuf, FFT_POINTS);  // 积分
     Calc_RMS_Only(fftBuf, FFT_POINTS, &Z_data);// 速度 RMS
 
